@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { getModelToken } from '@nestjs/mongoose';
 import { User } from '../src/users/schemas/user.schema';
@@ -162,7 +162,7 @@ describe('AuthController (e2e)', () => {
         .expect((res) => {
           expect(res.body.success).toBe(true);
           // Check that new cookies were set
-          const cookies = res.headers['set-cookie'];
+          const cookies = res.headers['set-cookie'] as unknown as string[];
           expect(cookies).toBeDefined();
           expect(
             cookies.some((c: string) => c.startsWith('access_token=')),
@@ -205,7 +205,7 @@ describe('AuthController (e2e)', () => {
       expect(response.body.success).toBe(true);
 
       // Verify cookies were cleared
-      const cookies = response.headers['set-cookie'];
+      const cookies = response.headers['set-cookie'] as unknown as string[];
       expect(cookies).toBeDefined();
       expect(cookies.some((c: string) => c.includes('access_token=;'))).toBe(
         true,
@@ -240,14 +240,14 @@ describe('AuthController (e2e)', () => {
       expect(refreshResponse.body.success).toBe(true);
 
       // Extract new access token from cookies
-      const cookies = refreshResponse.headers['set-cookie'];
+      const cookies = refreshResponse.headers['set-cookie'] as unknown as string[];
       const accessTokenCookie = cookies.find((c: string) =>
         c.startsWith('access_token='),
       );
       expect(accessTokenCookie).toBeDefined();
 
       // Verify we can access protected route with new token
-      const newAccessToken = accessTokenCookie.split(';')[0].split('=')[1];
+      const newAccessToken = accessTokenCookie!.split(';')[0].split('=')[1];
       return request(app.getHttpServer())
         .get('/api/auth/me')
         .set('Cookie', [`access_token=${newAccessToken}`])

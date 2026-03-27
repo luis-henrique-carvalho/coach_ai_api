@@ -50,7 +50,8 @@ describe('HealthController', () => {
       ],
     }).compile();
 
-    const disconnectedController = module.get<HealthController>(HealthController);
+    const disconnectedController =
+      module.get<HealthController>(HealthController);
     const result = disconnectedController.health();
     expect(result).toEqual({
       status: 'ok',
