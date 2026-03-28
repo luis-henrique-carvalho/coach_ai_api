@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import { getModelToken, getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import request from 'supertest';
+import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { User, UserDocument } from '../src/users/schemas/user.schema';
 import { AuthService } from '../src/auth/auth.service';
@@ -22,6 +23,10 @@ describe('AuthController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    
+    // Add cookie parser middleware - REQUIRED for cookie-based authentication tests
+    app.use(cookieParser());
+    
     // ValidationPipe requires class-validator which isn't in test dependencies
     // For E2E tests, validation can be tested at the API level via HTTP requests
     // app.useGlobalPipes(new ValidationPipe());

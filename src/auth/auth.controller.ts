@@ -6,6 +6,7 @@ import {
   Res,
   UseGuards,
   UnauthorizedException,
+  HttpCode,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Response, Request } from 'express';
@@ -118,6 +119,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @HttpCode(200)
   refresh(@Req() req: AuthRequest, @Res() res: Response) {
     const refreshToken = req.cookies?.refresh_token;
     if (typeof refreshToken !== 'string') {
@@ -151,6 +153,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @HttpCode(200)
   logout(@Req() req: AuthRequest, @Res() res: Response) {
     const refreshToken = req.cookies?.refresh_token;
     if (typeof refreshToken === 'string') {
