@@ -1,17 +1,27 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type SubtaskDocument = Subtask & Document;
 
 @Schema({ timestamps: true })
 export class Subtask {
-  @Prop({ type: Types.ObjectId, ref: 'Goal', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Goal',
+    required: true,
+    index: true,
+  })
   goalId!: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true,
+  })
   userId!: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Subtask', default: null })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Subtask', default: null })
   parentId!: Types.ObjectId | null;
 
   @Prop({ required: true, trim: true, maxlength: 200 })

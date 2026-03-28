@@ -382,11 +382,14 @@ export class HabitsService {
       })
       .exec();
 
-    return Object.assign(habit, {
+    return {
+      ...('toObject' in habit && typeof habit.toObject === 'function'
+        ? habit.toObject()
+        : habit),
       currentStreak: stats.currentStreak,
       bestStreak: stats.bestStreak,
       totalCompletions: stats.totalCompletions,
       isCompletedToday: !!todayCompletion,
-    }) as HabitWithStats;
+    } as HabitWithStats;
   }
 }
