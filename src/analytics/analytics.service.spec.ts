@@ -228,10 +228,9 @@ describe('AnalyticsService', () => {
           sort: jest.fn().mockReturnThis(),
           limit: jest.fn().mockReturnThis(),
           populate: jest.fn().mockReturnThis(),
-          exec: jest.fn().mockResolvedValue([
-            ...habit1Completions,
-            ...habit2Completions,
-          ]),
+          exec: jest
+            .fn()
+            .mockResolvedValue([...habit1Completions, ...habit2Completions]),
         })
         .mockReturnValueOnce({
           sort: jest.fn().mockReturnThis(),
@@ -329,11 +328,17 @@ describe('AnalyticsService', () => {
           result.streaks[1].currentStreak,
         );
       }
-      result.streaks.forEach((streak: { habitId: string; habitName: string; currentStreak: number }) => {
-        expect(streak).toHaveProperty('habitId');
-        expect(streak).toHaveProperty('habitName');
-        expect(streak).toHaveProperty('currentStreak');
-      });
+      result.streaks.forEach(
+        (streak: {
+          habitId: string;
+          habitName: string;
+          currentStreak: number;
+        }) => {
+          expect(streak).toHaveProperty('habitId');
+          expect(streak).toHaveProperty('habitName');
+          expect(streak).toHaveProperty('currentStreak');
+        },
+      );
     });
 
     it('should return recentCompletions (last 10)', async () => {
@@ -379,11 +384,13 @@ describe('AnalyticsService', () => {
 
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBe(7);
-      result.forEach((point: { date: string; completions: number; total: number }) => {
-        expect(point).toHaveProperty('date');
-        expect(point).toHaveProperty('completions');
-        expect(point).toHaveProperty('total');
-      });
+      result.forEach(
+        (point: { date: string; completions: number; total: number }) => {
+          expect(point).toHaveProperty('date');
+          expect(point).toHaveProperty('completions');
+          expect(point).toHaveProperty('total');
+        },
+      );
     });
 
     it('should return 30 entries for 30d period', async () => {
@@ -397,15 +404,19 @@ describe('AnalyticsService', () => {
 
     it('should handle days with no completions (count = 0)', async () => {
       // Aggregate returns only 2 of 7 days
-      habitCompletionModel.aggregate = jest.fn().mockResolvedValue([
-        { _id: format(new Date(), 'yyyy-MM-dd'), count: 3 },
-      ]);
+      habitCompletionModel.aggregate = jest
+        .fn()
+        .mockResolvedValue([
+          { _id: format(new Date(), 'yyyy-MM-dd'), count: 3 },
+        ]);
       habitModel.countDocuments = jest.fn().mockResolvedValue(2);
 
       const result = await service.getHabitTrends(userId, '7d');
 
       // 6 days should have completions = 0
-      const zeroDays = result.filter((p: { completions: number }) => p.completions === 0);
+      const zeroDays = result.filter(
+        (p: { completions: number }) => p.completions === 0,
+      );
       expect(zeroDays.length).toBe(6);
     });
   });
@@ -444,7 +455,11 @@ describe('AnalyticsService', () => {
         exec: jest.fn().mockResolvedValue([]),
       });
 
-      const result = await service.getHeatmap(userId, habitId1.toString(), 2025);
+      const result = await service.getHeatmap(
+        userId,
+        habitId1.toString(),
+        2025,
+      );
 
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBe(0);

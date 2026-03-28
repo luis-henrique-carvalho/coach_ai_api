@@ -43,13 +43,11 @@ describe('AnalyticsController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
-      providers: [
-        { provide: AnalyticsService, useValue: mockService },
-      ],
+      providers: [{ provide: AnalyticsService, useValue: mockService }],
     }).compile();
 
     controller = module.get<AnalyticsController>(AnalyticsController);
-    analyticsService = module.get(AnalyticsService) as jest.Mocked<AnalyticsService>;
+    analyticsService = module.get(AnalyticsService);
   });
 
   it('should be defined', () => {
@@ -79,7 +77,10 @@ describe('AnalyticsController', () => {
       const query: TrendsQueryDto = { period: '7d' };
       const result = await controller.getHabitTrends(mockReq as never, query);
 
-      expect(analyticsService.getHabitTrends).toHaveBeenCalledWith(userId, '7d');
+      expect(analyticsService.getHabitTrends).toHaveBeenCalledWith(
+        userId,
+        '7d',
+      );
       expect(result).toEqual(mockTrends);
     });
 

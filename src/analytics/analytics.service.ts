@@ -113,14 +113,15 @@ export class AnalyticsService {
     const streaks: StreakEntry[] = [];
 
     for (const habit of activeHabits) {
-      const habitObjectId = habit._id as Types.ObjectId;
+      const habitObjectId = habit._id;
       const habitIdStr = habitObjectId.toString();
 
       // Count completions in last 30 days for this habit
-      const habitCompletions30d = await this.habitCompletionModel.countDocuments({
-        habitId: habitObjectId,
-        completedDate: { $gte: thirtyDaysAgo, $lt: tomorrowStart },
-      });
+      const habitCompletions30d =
+        await this.habitCompletionModel.countDocuments({
+          habitId: habitObjectId,
+          completedDate: { $gte: thirtyDaysAgo, $lt: tomorrowStart },
+        });
 
       // Calculate expected based on frequency
       const expectedDays = this.calculateExpectedDays(
@@ -167,16 +168,14 @@ export class AnalyticsService {
         : { habitName: '', days: 0 };
 
     // Goal stats
-    const allGoals = await this.goalModel
-      .find({ userId: userObjectId })
-      .exec();
+    const allGoals = await this.goalModel.find({ userId: userObjectId }).exec();
 
     const totalGoals = allGoals.length;
     const completedGoals = allGoals.filter((g) => g.isCompleted).length;
 
     let progressSum = 0;
     for (const goal of allGoals) {
-      const goalObjectId = goal._id as Types.ObjectId;
+      const goalObjectId = goal._id;
       const totalSubtasks = await this.subtaskModel.countDocuments({
         goalId: goalObjectId,
       });
@@ -216,7 +215,8 @@ export class AnalyticsService {
 
   async getHabitTrends(userId: string, period?: string): Promise<TrendPoint[]> {
     const resolvedPeriod = period ?? '30d';
-    const daysCount = resolvedPeriod === '7d' ? 7 : resolvedPeriod === '90d' ? 90 : 30;
+    const daysCount =
+      resolvedPeriod === '7d' ? 7 : resolvedPeriod === '90d' ? 90 : 30;
     const today = startOfDay(new Date());
     const startDate = subDays(today, daysCount - 1);
     const tomorrowStart = new Date(today.getTime() + 24 * 60 * 60 * 1000);
@@ -238,7 +238,9 @@ export class AnalyticsService {
       },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$completedDate' } },
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$completedDate' },
+          },
           count: { $sum: 1 },
         },
       },
@@ -303,9 +305,8 @@ export class AnalyticsService {
       // custom — enumerate scheduled days in period
       const startDate = subDays(today, periodDays - 1);
       const allDays = eachDayOfInterval({ start: startDate, end: today });
-      return allDays.filter((day) =>
-        frequencyDays.includes(getDay(day)),
-      ).length;
+      return allDays.filter((day) => frequencyDays.includes(getDay(day)))
+        .length;
     }
   }
 
@@ -367,9 +368,7 @@ export class AnalyticsService {
       // Custom frequency
       if (frequencyDays.length === 0) return 0;
       const completionSet = new Set(
-        completions.map((c) =>
-          startOfDay(new Date(c.completedDate)).getTime(),
-        ),
+        completions.map((c) => startOfDay(new Date(c.completedDate)).getTime()),
       );
       const oldestCompletion = Math.min(...Array.from(completionSet));
       const limitDate = oldestCompletion - 8 * 24 * 60 * 60 * 1000;

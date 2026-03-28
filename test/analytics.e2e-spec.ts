@@ -115,7 +115,9 @@ describe('AnalyticsController (e2e)', () => {
 
   afterAll(async () => {
     // Cleanup
-    await habitCompletionModel.deleteMany({ userId: new Types.ObjectId(testUserId) });
+    await habitCompletionModel.deleteMany({
+      userId: new Types.ObjectId(testUserId),
+    });
     await habitModel.deleteMany({ userId: new Types.ObjectId(testUserId) });
     await goalModel.deleteMany({ userId: new Types.ObjectId(testUserId) });
     await userModel.deleteMany({ _id: new Types.ObjectId(testUserId) });
@@ -229,12 +231,14 @@ describe('AnalyticsController (e2e)', () => {
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      res.body.forEach((point: { date: string; completions: number; total: number }) => {
-        expect(point).toHaveProperty('date');
-        expect(point).toHaveProperty('completions');
-        expect(point).toHaveProperty('total');
-        expect(typeof point.completions).toBe('number');
-      });
+      res.body.forEach(
+        (point: { date: string; completions: number; total: number }) => {
+          expect(point).toHaveProperty('date');
+          expect(point).toHaveProperty('completions');
+          expect(point).toHaveProperty('total');
+          expect(typeof point.completions).toBe('number');
+        },
+      );
     });
 
     it('should return 400 for invalid period', async () => {
