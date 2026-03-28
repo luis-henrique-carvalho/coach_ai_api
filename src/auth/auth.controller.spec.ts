@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthController, AuthRequest } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -21,6 +22,8 @@ describe('AuthController', () => {
     generateTokens: jest.fn(),
     validateRefreshToken: jest.fn(),
     revokeRefreshToken: jest.fn(),
+    register: jest.fn(),
+    loginWithEmailPassword: jest.fn(),
   };
 
   const mockConfigService = {
@@ -238,6 +241,100 @@ describe('AuthController', () => {
       expect(mockResponse.clearCookie).toHaveBeenCalledWith('access_token');
       expect(mockResponse.clearCookie).toHaveBeenCalledWith('refresh_token');
       expect(mockResponse.json).toHaveBeenCalledWith({ success: true });
+    });
+  });
+
+  describe('register', () => {
+    it('should create user, set cookies, and return success', async () => {
+      const registerDto = {
+        email: 'new@example.com',
+        password: 'password123',
+        name: 'New User',
+      };
+      const tokens = {
+        accessToken: 'access-token-register',
+        refreshToken: 'refresh-token-register',
+      };
+
+      mockAuthService.register.mockResolvedValue(tokens);
+
+      await controller.register(registerDto, mockResponse as unknown as Response);
+
+      expect(mockAuthService.register).toHaveBeenCalledWith(
+        registerDto.email,
+        registerDto.name,
+        registerDto.password,
+      );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'access_token',
+        tokens.accessToken,
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'refresh_token',
+        tokens.refreshToken,
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(mockResponse.json).toHaveBeenCalledWith({ success: true });
+    });
+
+    it('should propagate ConflictException when email is taken', async () => {
+      const registerDto = {
+        email: 'taken@example.com',
+        password: 'password123',
+        name: 'User',
+      };
+
+      mockAuthService.register.mockRejectedValue(
+        new ConflictException('Email already registered'),
+      );
+
+      await expect(
+        controller.register(registerDto, mockResponse as unknown as Response),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('login', () => {
+    it('should validate credentials, set cookies, and return success', async () => {
+      const loginDto = {
+        email: 'test@example.com',
+        password: 'password123',
+      };
+      const tokens = {
+        accessToken: 'access-token-login',
+        refreshToken: 'refresh-token-login',
+      };
+
+      mockAuthService.loginWithEmailPassword.mockResolvedValue(tokens);
+
+      await controller.login(loginDto, mockResponse as unknown as Response);
+
+      expect(mockAuthService.loginWithEmailPassword).toHaveBeenCalledWith(
+        loginDto.email,
+        loginDto.password,
+      );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'access_token',
+        tokens.accessToken,
+        expect.objectContaining({ httpOnly: true }),
+      );
+      expect(mockResponse.json).toHaveBeenCalledWith({ success: true });
+    });
+
+    it('should propagate UnauthorizedException for invalid credentials', async () => {
+      const loginDto = {
+        email: 'test@example.com',
+        password: 'wrongpassword',
+      };
+
+      mockAuthService.loginWithEmailPassword.mockRejectedValue(
+        new UnauthorizedException('Invalid credentials'),
+      );
+
+      await expect(
+        controller.login(loginDto, mockResponse as unknown as Response),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });
