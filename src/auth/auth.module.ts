@@ -22,11 +22,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         const expiresIn = configService.get<string>('JWT_ACCESS_EXPIRATION');
         // The expiresIn value comes from environment configuration (JWT_ACCESS_EXPIRATION) in .env,
         // which is validated at runtime to match the ms format (e.g., "15m", "7d").
-        // TypeScript's StringValue type is a template literal that only accepts specific patterns,
-        // and we cannot statically prove the config value matches those patterns.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // We use a type assertion here because the environment config is validated at runtime
+        // but TypeScript cannot statically verify that the string matches the required format.
+
         config.signOptions = {
-          expiresIn: (expiresIn || '15m') as any,
+          expiresIn: (expiresIn || '15m') as string | number,
         };
         return config;
       },

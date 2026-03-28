@@ -23,10 +23,10 @@ describe('AuthController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    
+
     // Add cookie parser middleware - REQUIRED for cookie-based authentication tests
     app.use(cookieParser());
-    
+
     // ValidationPipe requires class-validator which isn't in test dependencies
     // For E2E tests, validation can be tested at the API level via HTTP requests
     // app.useGlobalPipes(new ValidationPipe());
@@ -53,7 +53,7 @@ describe('AuthController (e2e)', () => {
 
   describe('/api/auth/google (GET)', () => {
     it('should redirect to Google OAuth', () => {
-      return request(app.getHttpServer())
+      return request(app.getHttpServer() as string)
         .get('/api/auth/google')
         .expect(302)
         .expect((res) => {
@@ -64,7 +64,7 @@ describe('AuthController (e2e)', () => {
 
   describe('/api/auth/github (GET)', () => {
     it('should redirect to GitHub OAuth', () => {
-      return request(app.getHttpServer())
+      return request(app.getHttpServer() as string)
         .get('/api/auth/github')
         .expect(302)
         .expect((res) => {
@@ -141,7 +141,7 @@ describe('AuthController (e2e)', () => {
       const tokens = authService.generateTokens(testUser._id.toString());
 
       // Call /api/auth/me with access token
-      return request(app.getHttpServer())
+      return request(app.getHttpServer() as string)
         .get('/api/auth/me')
         .set('Cookie', [`access_token=${tokens.accessToken}`])
         .expect(200)
@@ -156,7 +156,9 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should return 401 when not authenticated', () => {
-      return request(app.getHttpServer()).get('/api/auth/me').expect(401);
+      return request(app.getHttpServer() as string)
+        .get('/api/auth/me')
+        .expect(401);
     });
   });
 
@@ -175,7 +177,7 @@ describe('AuthController (e2e)', () => {
       const tokens = authService.generateTokens(testUser._id.toString());
 
       // Call refresh endpoint
-      return request(app.getHttpServer())
+      return request(app.getHttpServer() as string)
         .post('/api/auth/refresh')
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200)
@@ -194,7 +196,7 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should return 401 for invalid refresh token', () => {
-      return request(app.getHttpServer())
+      return request(app.getHttpServer() as string)
         .post('/api/auth/refresh')
         .set('Cookie', ['refresh_token=invalid-token'])
         .expect(401);
@@ -216,7 +218,7 @@ describe('AuthController (e2e)', () => {
       const tokens = authService.generateTokens(testUser._id.toString());
 
       // Logout
-      const response = await request(app.getHttpServer())
+      const response = await request(app.getHttpServer() as string)
         .post('/api/auth/logout')
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200);
@@ -250,7 +252,7 @@ describe('AuthController (e2e)', () => {
       const tokens = authService.generateTokens(testUser._id.toString());
 
       // Simulate access token expiration by trying to use refresh token
-      const refreshResponse = await request(app.getHttpServer())
+      const refreshResponse = await request(app.getHttpServer() as string)
         .post('/api/auth/refresh')
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200);
@@ -272,7 +274,7 @@ describe('AuthController (e2e)', () => {
       const newAccessToken = (accessTokenCookie as string)
         .split(';')[0]
         .split('=')[1];
-      return request(app.getHttpServer())
+      return request(app.getHttpServer() as string)
         .get('/api/auth/me')
         .set('Cookie', [`access_token=${newAccessToken}`])
         .expect(200)

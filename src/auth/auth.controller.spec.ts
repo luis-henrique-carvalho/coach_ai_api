@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
 import { AuthController, AuthRequest } from './auth.controller';
 import { AuthService } from './auth.service';
 
@@ -31,7 +32,7 @@ describe('AuthController', () => {
     },
   };
 
-  const mockResponse = {} as Record<string, jest.Mock>;
+  const mockResponse: Partial<Response> = {};
 
   mockResponse.cookie = jest.fn(function (this: void) {
     return mockResponse;
@@ -80,7 +81,7 @@ describe('AuthController', () => {
       mockAuthService.generateTokens.mockReturnValue(tokens);
 
       const req = { user: mockUser } as unknown as AuthRequest;
-      controller.googleCallback(req, mockResponse as any);
+      controller.googleCallback(req, mockResponse as Response);
 
       expect(mockAuthService.generateTokens).toHaveBeenCalledWith(mockUser._id);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
@@ -119,7 +120,7 @@ describe('AuthController', () => {
       mockAuthService.generateTokens.mockReturnValue(tokens);
 
       const req = { user: mockUser } as unknown as AuthRequest;
-      controller.githubCallback(req, mockResponse as any);
+      controller.githubCallback(req, mockResponse as Response);
 
       expect(mockAuthService.generateTokens).toHaveBeenCalledWith(mockUser._id);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
@@ -175,7 +176,7 @@ describe('AuthController', () => {
       mockAuthService.validateRefreshToken.mockReturnValue(userId);
       mockAuthService.generateTokens.mockReturnValue(newTokens);
 
-      controller.refresh(req, mockResponse as any);
+      controller.refresh(req, mockResponse as Response);
 
       expect(mockAuthService.validateRefreshToken).toHaveBeenCalledWith(
         oldRefreshToken,
@@ -203,7 +204,7 @@ describe('AuthController', () => {
 
       mockAuthService.validateRefreshToken.mockReturnValue(null);
 
-      expect(() => controller.refresh(req, mockResponse as any)).toThrow();
+      expect(() => controller.refresh(req, mockResponse as Response)).toThrow();
     });
   });
 
@@ -216,7 +217,7 @@ describe('AuthController', () => {
         },
       } as unknown as AuthRequest;
 
-      controller.logout(req, mockResponse as any);
+      controller.logout(req, mockResponse as Response);
 
       expect(mockAuthService.revokeRefreshToken).toHaveBeenCalledWith(
         refreshToken,

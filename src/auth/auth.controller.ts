@@ -16,6 +16,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UserResponseDto } from './dto/user-response.dto';
 
 export interface AuthRequest extends Request {
+  cookies: Record<string, string | undefined>;
   user?: {
     _id: string;
     email: string;
@@ -121,7 +122,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(200)
   refresh(@Req() req: AuthRequest, @Res() res: Response) {
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken: string | undefined = req.cookies['refresh_token'];
     if (typeof refreshToken !== 'string') {
       throw new UnauthorizedException('Refresh token not found');
     }
@@ -155,7 +156,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(200)
   logout(@Req() req: AuthRequest, @Res() res: Response) {
-    const refreshToken = req.cookies?.refresh_token;
+    const refreshToken: string | undefined = req.cookies['refresh_token'];
     if (typeof refreshToken === 'string') {
       this.authService.revokeRefreshToken(refreshToken);
     }
