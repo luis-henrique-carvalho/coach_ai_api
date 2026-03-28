@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
+import { ConflictException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { User } from './schemas/user.schema';
 
@@ -155,6 +156,83 @@ describe('UsersService', () => {
       const result = await service.findById('nonexistent-id');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('findByEmail', () => {
+    it('should return a user by email', async () => {
+      mockUserModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockUser),
+      });
+
+      const result = await service.findByEmail('test@example.com');
+
+      expect(result).toBeDefined();
+      expect(result?.email).toBe(mockUser.email);
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        email: 'test@example.com',
+      });
+    });
+
+    it('should return null if user not found by email', async () => {
+      mockUserModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      });
+
+      const result = await service.findByEmail('nonexistent@example.com');
+
+      expect(result).toBeNull();
+    });
+
+    it('should select password field when includePassword is true', async () => {
+      const mockSelect = jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ ...mockUser, password: 'hashed' }),
+      });
+      mockUserModel.findOne.mockReturnValue({ select: mockSelect });
+
+      const result = await service.findByEmail('test@example.com', true);
+
+      expect(mockSelect).toHaveBeenCalledWith('+password');
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('createWithEmailPassword', () => {
+    it('should create a user with hashed password', async () => {
+      mockUserModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null), // email not taken
+      });
+      mockUserModel.create.mockResolvedValue({
+        ...mockUser,
+        email: 'new@example.com',
+        name: 'New User',
+        password: 'hashedpassword',
+        providers: {},
+      });
+
+      const result = await service.createWithEmailPassword(
+        'new@example.com',
+        'New User',
+        'hashedpassword',
+      );
+
+      expect(result.email).toBe('new@example.com');
+      expect(mockUserModel.create).toHaveBeenCalledWith({
+        email: 'new@example.com',
+        name: 'New User',
+        password: 'hashedpassword',
+        providers: {},
+      });
+    });
+
+    it('should throw ConflictException if email already registered', async () => {
+      mockUserModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockUser), // email taken
+      });
+
+      await expect(
+        service.createWithEmailPassword('test@example.com', 'User', 'hash'),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

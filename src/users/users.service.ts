@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
@@ -21,6 +21,35 @@ export class UsersService {
 
   async findById(id: string): Promise<UserDocument | null> {
     return this.userModel.findById(id).exec();
+  }
+
+  async findByEmail(
+    email: string,
+    includePassword = false,
+  ): Promise<UserDocument | null> {
+    const query = this.userModel.findOne({ email });
+    if (includePassword) {
+      return query.select('+password').exec();
+    }
+    return query.exec();
+  }
+
+  async createWithEmailPassword(
+    email: string,
+    name: string,
+    hashedPassword: string,
+  ): Promise<UserDocument> {
+    const existing = await this.userModel.findOne({ email }).exec();
+    if (existing) {
+      throw new ConflictException('Email already registered');
+    }
+
+    return this.userModel.create({
+      email,
+      name,
+      password: hashedPassword,
+      providers: {},
+    });
   }
 
   async findOrCreateByOAuth(profile: OAuthProfile): Promise<UserDocument> {
