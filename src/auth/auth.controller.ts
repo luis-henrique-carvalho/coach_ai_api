@@ -14,7 +14,7 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UserResponseDto } from './dto/user-response.dto';
 
-interface AuthRequest extends Request {
+export interface AuthRequest extends Request {
   user?: {
     _id: string;
     email: string;

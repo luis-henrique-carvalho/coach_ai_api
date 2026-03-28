@@ -49,10 +49,9 @@ describe('GoogleStrategy', () => {
     it('should validate profile and create/return user', async () => {
       const mockProfile = {
         id: 'google-123',
-        emails: [{ value: 'test@example.com', verified: true }],
+        emails: [{ value: 'test@example.com' }],
         displayName: 'Test User',
         photos: [{ value: 'https://example.com/avatar.jpg' }],
-        provider: 'google',
       };
 
       const mockUser = {
@@ -67,13 +66,15 @@ describe('GoogleStrategy', () => {
 
       mockAuthService.validateUser.mockResolvedValue(mockUser);
 
-      const result = await strategy.validate(
+      const mockDone = jest.fn();
+      await strategy.validate(
         'access-token',
         'refresh-token',
         mockProfile,
+        mockDone,
       );
 
-      expect(result).toBe(mockUser);
+      expect(mockDone).toHaveBeenCalledWith(null, mockUser);
       expect(mockAuthService.validateUser).toHaveBeenCalledWith({
         provider: 'google',
         providerId: 'google-123',
@@ -104,20 +105,21 @@ describe('GoogleStrategy', () => {
 
       mockAuthService.validateUser.mockResolvedValue(mockUser);
 
-      const result = await strategy.validate(
+      const mockDone = jest.fn();
+      await strategy.validate(
         'access-token',
         'refresh-token',
         mockProfile,
-        jest.fn(),
+        mockDone,
       );
 
-      expect(result).toBe(mockUser);
+      expect(mockDone).toHaveBeenCalledWith(null, mockUser);
       expect(mockAuthService.validateUser).toHaveBeenCalledWith({
         provider: 'google',
         providerId: 'google-456',
         email: 'nophoto@example.com',
         name: 'No Photo User',
-        avatar: undefined,
+        avatar: '',
       });
     });
   });

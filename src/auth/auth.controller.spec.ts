@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { AuthController } from './auth.controller';
+import { AuthController, AuthRequest } from './auth.controller';
 import { AuthService } from './auth.service';
 
 describe('AuthController', () => {
@@ -33,10 +33,18 @@ describe('AuthController', () => {
 
   const mockResponse = {} as Record<string, jest.Mock>;
 
-  mockResponse.cookie = jest.fn((this: void) => mockResponse);
-  mockResponse.clearCookie = jest.fn((this: void) => mockResponse);
-  mockResponse.redirect = jest.fn((this: void) => mockResponse);
-  mockResponse.json = jest.fn((this: void) => mockResponse);
+  mockResponse.cookie = jest.fn(function (this: void) {
+    return mockResponse;
+  });
+  mockResponse.clearCookie = jest.fn(function (this: void) {
+    return mockResponse;
+  });
+  mockResponse.redirect = jest.fn(function (this: void) {
+    return mockResponse;
+  });
+  mockResponse.json = jest.fn(function (this: void) {
+    return mockResponse;
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -71,8 +79,8 @@ describe('AuthController', () => {
 
       mockAuthService.generateTokens.mockReturnValue(tokens);
 
-      const req = { user: mockUser };
-      controller.googleCallback(req, mockResponse);
+      const req = { user: mockUser } as unknown as AuthRequest;
+      controller.googleCallback(req, mockResponse as any);
 
       expect(mockAuthService.generateTokens).toHaveBeenCalledWith(mockUser._id);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
@@ -110,8 +118,8 @@ describe('AuthController', () => {
 
       mockAuthService.generateTokens.mockReturnValue(tokens);
 
-      const req = { user: mockUser };
-      controller.githubCallback(req, mockResponse);
+      const req = { user: mockUser } as unknown as AuthRequest;
+      controller.githubCallback(req, mockResponse as any);
 
       expect(mockAuthService.generateTokens).toHaveBeenCalledWith(mockUser._id);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
@@ -136,7 +144,7 @@ describe('AuthController', () => {
 
   describe('getProfile', () => {
     it('should return current user', () => {
-      const req = { user: mockUser };
+      const req = { user: mockUser } as unknown as AuthRequest;
 
       const result = controller.getProfile(req);
 
@@ -162,12 +170,12 @@ describe('AuthController', () => {
         cookies: {
           refresh_token: oldRefreshToken,
         },
-      };
+      } as unknown as AuthRequest;
 
       mockAuthService.validateRefreshToken.mockReturnValue(userId);
       mockAuthService.generateTokens.mockReturnValue(newTokens);
 
-      controller.refresh(req, mockResponse);
+      controller.refresh(req, mockResponse as any);
 
       expect(mockAuthService.validateRefreshToken).toHaveBeenCalledWith(
         oldRefreshToken,
@@ -191,11 +199,11 @@ describe('AuthController', () => {
         cookies: {
           refresh_token: 'invalid-token',
         },
-      };
+      } as unknown as AuthRequest;
 
       mockAuthService.validateRefreshToken.mockReturnValue(null);
 
-      expect(() => controller.refresh(req, mockResponse)).toThrow();
+      expect(() => controller.refresh(req, mockResponse as any)).toThrow();
     });
   });
 
@@ -206,9 +214,9 @@ describe('AuthController', () => {
         cookies: {
           refresh_token: refreshToken,
         },
-      };
+      } as unknown as AuthRequest;
 
-      controller.logout(req, mockResponse);
+      controller.logout(req, mockResponse as any);
 
       expect(mockAuthService.revokeRefreshToken).toHaveBeenCalledWith(
         refreshToken,

@@ -114,7 +114,7 @@ describe('GithubStrategy', () => {
       expect(mockAuthService.validateUser).toHaveBeenCalledWith({
         provider: 'github',
         providerId: 'github-456',
-        email: undefined,
+        email: '',
         name: 'No Email User',
         avatar: 'https://github.com/avatar2.jpg',
       });
