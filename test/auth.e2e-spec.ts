@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { getModelToken, getConnectionToken } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
 import request from 'supertest';
@@ -27,9 +27,14 @@ describe('AuthController (e2e)', () => {
     // Add cookie parser middleware - REQUIRED for cookie-based authentication tests
     app.use(cookieParser());
 
-    // ValidationPipe requires class-validator which isn't in test dependencies
-    // For E2E tests, validation can be tested at the API level via HTTP requests
-    // app.useGlobalPipes(new ValidationPipe());
+    // Enable ValidationPipe for DTO validation
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
 
     userModel = moduleFixture.get(getModelToken(User.name));
     authService = moduleFixture.get(AuthService);
@@ -283,6 +288,169 @@ describe('AuthController (e2e)', () => {
             testUser.email,
           );
         });
+    });
+  });
+
+  describe('/api/auth/register (POST)', () => {
+    it('should create user and set JWT cookies', async () => {
+      const registerBody = {
+        email: 'register-e2e@example.com',
+        password: 'securepassword123',
+        name: 'E2E Register User',
+      };
+
+      const response = await request(app.getHttpServer() as string)
+        .post('/api/auth/register')
+        .send(registerBody)
+        .expect(201);
+
+      expect((response.body as Record<string, unknown>).success).toBe(true);
+
+      // Verify cookies are set
+      const cookies = response.headers['set-cookie'] as unknown as string[];
+      expect(cookies).toBeDefined();
+      expect(cookies.some((c: string) => c.startsWith('access_token='))).toBe(
+        true,
+      );
+      expect(cookies.some((c: string) => c.startsWith('refresh_token='))).toBe(
+        true,
+      );
+
+      // Verify user created in database
+      const createdUser = await userModel.findOne({ email: registerBody.email });
+      expect(createdUser).toBeDefined();
+      expect(createdUser?.name).toBe(registerBody.name);
+    });
+
+    it('should return 409 when email already registered', async () => {
+      const existingUser = {
+        email: 'duplicate-e2e@example.com',
+        password: 'securepassword123',
+        name: 'Duplicate User',
+      };
+
+      // Register once
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/register')
+        .send(existingUser)
+        .expect(201);
+
+      // Register again with same email
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/register')
+        .send(existingUser)
+        .expect(409);
+    });
+
+    it('should return 400 for invalid body (missing name)', async () => {
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/register')
+        .send({ email: 'bad@example.com', password: 'password123' })
+        .expect(400);
+    });
+
+    it('should return 400 for short password (less than 8 chars)', async () => {
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/register')
+        .send({ email: 'bad@example.com', password: 'short', name: 'User' })
+        .expect(400);
+    });
+
+    it('should return 400 for invalid email format', async () => {
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/register')
+        .send({ email: 'not-an-email', password: 'password123', name: 'User' })
+        .expect(400);
+    });
+  });
+
+  describe('/api/auth/login (POST)', () => {
+    const testUser = {
+      email: 'login-e2e@example.com',
+      password: 'securepassword123',
+      name: 'E2E Login User',
+    };
+
+    beforeEach(async () => {
+      // Register a user before each login test
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/register')
+        .send(testUser);
+    });
+
+    it('should return JWT cookies for valid credentials', async () => {
+      const response = await request(app.getHttpServer() as string)
+        .post('/api/auth/login')
+        .send({ email: testUser.email, password: testUser.password })
+        .expect(200);
+
+      expect((response.body as Record<string, unknown>).success).toBe(true);
+
+      const cookies = response.headers['set-cookie'] as unknown as string[];
+      expect(cookies.some((c: string) => c.startsWith('access_token='))).toBe(
+        true,
+      );
+      expect(cookies.some((c: string) => c.startsWith('refresh_token='))).toBe(
+        true,
+      );
+    });
+
+    it('should return 401 for wrong password', async () => {
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/login')
+        .send({ email: testUser.email, password: 'wrongpassword' })
+        .expect(401);
+    });
+
+    it('should return 401 for non-existent user', async () => {
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/login')
+        .send({ email: 'nouser@example.com', password: 'password123' })
+        .expect(401);
+    });
+
+    it('should return 401 for OAuth-only account (no password)', async () => {
+      // Create an OAuth-only user directly in DB (no password field)
+      await userModel.create({
+        email: 'oauth-only@example.com',
+        name: 'OAuth User',
+        providers: { google: { id: 'google-oauth-only' } },
+      });
+
+      await request(app.getHttpServer() as string)
+        .post('/api/auth/login')
+        .send({ email: 'oauth-only@example.com', password: 'somepassword' })
+        .expect(401);
+    });
+
+    it('should allow /api/auth/me access after login', async () => {
+      const loginResponse = await request(app.getHttpServer() as string)
+        .post('/api/auth/login')
+        .send({ email: testUser.email, password: testUser.password })
+        .expect(200);
+
+      // Extract access_token cookie
+      const cookies = loginResponse.headers['set-cookie'] as unknown as string[];
+      const accessTokenCookie = cookies.find((c: string) =>
+        c.startsWith('access_token='),
+      );
+      expect(accessTokenCookie).toBeDefined();
+      const accessToken = (accessTokenCookie as string)
+        .split(';')[0]
+        .split('=')[1];
+
+      // Use access token to call /api/auth/me
+      const meResponse = await request(app.getHttpServer() as string)
+        .get('/api/auth/me')
+        .set('Cookie', [`access_token=${accessToken}`])
+        .expect(200);
+
+      expect((meResponse.body as Record<string, unknown>).email).toBe(
+        testUser.email,
+      );
+      expect((meResponse.body as Record<string, unknown>).name).toBe(
+        testUser.name,
+      );
     });
   });
 });
