@@ -248,8 +248,8 @@ export class AnalyticsService {
 
     // Build map from aggregation result
     const completionsMap = new Map<string, number>();
-    for (const entry of aggregateResult) {
-      completionsMap.set(entry._id as string, entry.count as number);
+    for (const entry of aggregateResult as { _id: string; count: number }[]) {
+      completionsMap.set(entry._id, entry.count);
     }
 
     // Generate all days in the period

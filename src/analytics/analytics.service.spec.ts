@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { AnalyticsService } from './analytics.service';
 import { Habit } from '../habits/schemas/habit.schema';
 import { HabitCompletion } from '../habits/schemas/habit-completion.schema';

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { getModelToken, getConnectionToken } from '@nestjs/mongoose';
 import { Connection, Model, Types } from 'mongoose';
+import type { Server } from 'http';
 import request from 'supertest';
 import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
@@ -15,8 +16,36 @@ import { Goal, GoalDocument } from '../src/goals/schemas/goal.schema';
 import { AuthService } from '../src/auth/auth.service';
 import { startOfDay, subDays } from 'date-fns';
 
+interface DashboardBody {
+  habits: {
+    total: number;
+    completedToday: number;
+    averageCompletionRate: number;
+    longestActiveStreak: { habitName: string; days: number };
+  };
+  goals: {
+    total: number;
+    completed: number;
+    averageProgress: number;
+  };
+  streaks: { habitId: string; habitName: string; currentStreak: number }[];
+  recentCompletions: unknown[];
+}
+
+interface TrendPoint {
+  date: string;
+  completions: number;
+  total: number;
+}
+
+interface HeatmapEntry {
+  date: string;
+  count: number;
+}
+
 describe('AnalyticsController (e2e)', () => {
   let app: INestApplication;
+  let httpServer: Server;
   let userModel: Model<UserDocument>;
   let habitModel: Model<HabitDocument>;
   let habitCompletionModel: Model<HabitCompletionDocument>;
@@ -55,6 +84,8 @@ describe('AnalyticsController (e2e)', () => {
     connection = moduleFixture.get<Connection>(getConnectionToken());
 
     await app.init();
+
+    httpServer = app.getHttpServer() as Server;
 
     // Create a test user and generate JWT token
     const testUser = await userModel.create({
@@ -130,19 +161,15 @@ describe('AnalyticsController (e2e)', () => {
 
   describe('Authentication', () => {
     it('should return 401 without JWT for GET /analytics/dashboard', async () => {
-      return request(app.getHttpServer())
-        .get('/analytics/dashboard')
-        .expect(401);
+      return request(httpServer).get('/analytics/dashboard').expect(401);
     });
 
     it('should return 401 without JWT for GET /analytics/habits/trends', async () => {
-      return request(app.getHttpServer())
-        .get('/analytics/habits/trends')
-        .expect(401);
+      return request(httpServer).get('/analytics/habits/trends').expect(401);
     });
 
     it('should return 401 without JWT for GET /analytics/habits/:id/heatmap', async () => {
-      return request(app.getHttpServer())
+      return request(httpServer)
         .get(`/analytics/habits/${habit1Id}/heatmap`)
         .expect(401);
     });
@@ -150,99 +177,105 @@ describe('AnalyticsController (e2e)', () => {
 
   describe('GET /analytics/dashboard', () => {
     it('should return dashboard with correct habit count', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get('/analytics/dashboard')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(res.body.habits.total).toBe(2);
-      expect(res.body.habits).toHaveProperty('completedToday');
-      expect(res.body.habits).toHaveProperty('averageCompletionRate');
-      expect(res.body.habits).toHaveProperty('longestActiveStreak');
+      const body = res.body as DashboardBody;
+      expect(body.habits.total).toBe(2);
+      expect(body.habits).toHaveProperty('completedToday');
+      expect(body.habits).toHaveProperty('averageCompletionRate');
+      expect(body.habits).toHaveProperty('longestActiveStreak');
     });
 
     it('should return completedToday = 2 (both habits completed today)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get('/analytics/dashboard')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(res.body.habits.completedToday).toBe(2);
+      const body = res.body as DashboardBody;
+      expect(body.habits.completedToday).toBe(2);
     });
 
     it('should return streaks array with entries', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get('/analytics/dashboard')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(Array.isArray(res.body.streaks)).toBe(true);
-      expect(res.body.streaks.length).toBeGreaterThan(0);
-      expect(res.body.streaks[0]).toHaveProperty('habitId');
-      expect(res.body.streaks[0]).toHaveProperty('habitName');
-      expect(res.body.streaks[0]).toHaveProperty('currentStreak');
+      const body = res.body as DashboardBody;
+      expect(Array.isArray(body.streaks)).toBe(true);
+      expect(body.streaks.length).toBeGreaterThan(0);
+      expect(body.streaks[0]).toHaveProperty('habitId');
+      expect(body.streaks[0]).toHaveProperty('habitName');
+      expect(body.streaks[0]).toHaveProperty('currentStreak');
     });
 
     it('should return goal stats', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get('/analytics/dashboard')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(res.body.goals.total).toBe(1);
-      expect(res.body.goals).toHaveProperty('completed');
-      expect(res.body.goals).toHaveProperty('averageProgress');
+      const body = res.body as DashboardBody;
+      expect(body.goals.total).toBe(1);
+      expect(body.goals).toHaveProperty('completed');
+      expect(body.goals).toHaveProperty('averageProgress');
     });
 
     it('should return recentCompletions array', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get('/analytics/dashboard')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(Array.isArray(res.body.recentCompletions)).toBe(true);
+      const body = res.body as DashboardBody;
+      expect(Array.isArray(body.recentCompletions)).toBe(true);
     });
   });
 
   describe('GET /analytics/habits/trends', () => {
     it('should return 7 data points for ?period=7d', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get('/analytics/habits/trends?period=7d')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.length).toBe(7);
+      const body = res.body as TrendPoint[];
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBe(7);
     });
 
     it('should return 30 data points for ?period=30d (default)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get('/analytics/habits/trends')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.length).toBe(30);
+      const body = res.body as TrendPoint[];
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBe(30);
     });
 
     it('should return data points with correct shape', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get('/analytics/habits/trends?period=7d')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      res.body.forEach(
-        (point: { date: string; completions: number; total: number }) => {
-          expect(point).toHaveProperty('date');
-          expect(point).toHaveProperty('completions');
-          expect(point).toHaveProperty('total');
-          expect(typeof point.completions).toBe('number');
-        },
-      );
+      const body = res.body as TrendPoint[];
+      body.forEach((point) => {
+        expect(point).toHaveProperty('date');
+        expect(point).toHaveProperty('completions');
+        expect(point).toHaveProperty('total');
+        expect(typeof point.completions).toBe('number');
+      });
     });
 
     it('should return 400 for invalid period', async () => {
-      return request(app.getHttpServer())
+      return request(httpServer)
         .get('/analytics/habits/trends?period=invalid')
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(400);
@@ -251,23 +284,25 @@ describe('AnalyticsController (e2e)', () => {
 
   describe('GET /analytics/habits/:id/heatmap', () => {
     it('should return heatmap data for specific habit and year', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get(`/analytics/habits/${habit1Id}/heatmap?year=2026`)
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(Array.isArray(res.body)).toBe(true);
+      const body = res.body as HeatmapEntry[];
+      expect(Array.isArray(body)).toBe(true);
       // We added 7 days of completions for habit1 in 2026
-      expect(res.body.length).toBe(7);
+      expect(body.length).toBe(7);
     });
 
     it('should return heatmap entries with date and count', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get(`/analytics/habits/${habit1Id}/heatmap?year=2026`)
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      res.body.forEach((entry: { date: string; count: number }) => {
+      const body = res.body as HeatmapEntry[];
+      body.forEach((entry) => {
         expect(entry).toHaveProperty('date');
         expect(entry).toHaveProperty('count');
         expect(entry.count).toBe(1);
@@ -275,13 +310,14 @@ describe('AnalyticsController (e2e)', () => {
     });
 
     it('should return empty array for year with no completions', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(httpServer)
         .get(`/analytics/habits/${habit1Id}/heatmap?year=2020`)
         .set('Cookie', [`access_token=${testAccessToken}`])
         .expect(200);
 
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.length).toBe(0);
+      const body = res.body as HeatmapEntry[];
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBe(0);
     });
   });
 });
