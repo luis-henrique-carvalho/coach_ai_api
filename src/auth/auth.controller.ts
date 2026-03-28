@@ -39,7 +39,10 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(201)
-  async register(@Body() registerDto: RegisterDto, @Res() res: Response): Promise<void> {
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res() res: Response,
+  ): Promise<void> {
     const tokens = await this.authService.register(
       registerDto.email,
       registerDto.name,
@@ -64,7 +67,11 @@ export class AuthController {
 
   // --- Private helpers ---
 
-  private setTokenCookies(res: Response, accessToken: string, refreshToken: string): void {
+  private setTokenCookies(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+  ): void {
     const isProd = process.env.NODE_ENV === 'production';
     res.cookie('access_token', accessToken, {
       httpOnly: true,

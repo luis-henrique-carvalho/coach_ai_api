@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 
-// Mock bcrypt
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
   compare: jest.fn(),
@@ -13,6 +13,8 @@ jest.mock('bcrypt', () => ({
 
 describe('AuthService', () => {
   let service: AuthService;
+  let bcryptHashSpy: jest.SpyInstance;
+  let bcryptCompareSpy: jest.SpyInstance;
 
   const mockUser = {
     _id: '507f1f77bcf86cd799439011',
@@ -69,7 +71,9 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
 
-    // Clear all mocks before each test
+    bcryptHashSpy = jest.spyOn(bcrypt, 'hash');
+    bcryptCompareSpy = jest.spyOn(bcrypt, 'compare');
+
     jest.clearAllMocks();
   });
 
@@ -198,19 +202,24 @@ describe('AuthService', () => {
   describe('register', () => {
     it('should hash password and create user, return tokens', async () => {
       const hashedPassword = 'hashed-password-123';
-      const tokens = { accessToken: 'access-token', refreshToken: 'refresh-token' };
+      const tokens = {
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      };
 
-      // Import bcrypt after jest.mock
-      const bcrypt = require('bcrypt');
-      (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
+      bcryptHashSpy.mockResolvedValue(hashedPassword);
       mockUsersService.createWithEmailPassword.mockResolvedValue(mockUser);
       mockJwtService.sign
         .mockReturnValueOnce(tokens.accessToken)
         .mockReturnValueOnce(tokens.refreshToken);
 
-      const result = await service.register('test@example.com', 'Test User', 'password123');
+      const result = await service.register(
+        'test@example.com',
+        'Test User',
+        'password123',
+      );
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('password123', 12);
+      expect(bcryptHashSpy).toHaveBeenCalledWith('password123', 12);
       expect(mockUsersService.createWithEmailPassword).toHaveBeenCalledWith(
         'test@example.com',
         'Test User',
@@ -221,8 +230,7 @@ describe('AuthService', () => {
     });
 
     it('should propagate ConflictException when email is taken', async () => {
-      const bcrypt = require('bcrypt');
-      (bcrypt.hash as jest.Mock).mockResolvedValue('hash');
+      bcryptHashSpy.mockResolvedValue('hash');
       mockUsersService.createWithEmailPassword.mockRejectedValue(
         new ConflictException('Email already registered'),
       );
@@ -236,19 +244,30 @@ describe('AuthService', () => {
   describe('loginWithEmailPassword', () => {
     it('should return tokens for valid credentials', async () => {
       const userWithPassword = { ...mockUser, password: 'hashed-password' };
-      const tokens = { accessToken: 'access-token', refreshToken: 'refresh-token' };
+      const tokens = {
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      };
 
-      const bcrypt = require('bcrypt');
       mockUsersService.findByEmail.mockResolvedValue(userWithPassword);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      bcryptCompareSpy.mockResolvedValue(true);
       mockJwtService.sign
         .mockReturnValueOnce(tokens.accessToken)
         .mockReturnValueOnce(tokens.refreshToken);
 
-      const result = await service.loginWithEmailPassword('test@example.com', 'password123');
+      const result = await service.loginWithEmailPassword(
+        'test@example.com',
+        'password123',
+      );
 
-      expect(mockUsersService.findByEmail).toHaveBeenCalledWith('test@example.com', true);
-      expect(bcrypt.compare).toHaveBeenCalledWith('password123', 'hashed-password');
+      expect(mockUsersService.findByEmail).toHaveBeenCalledWith(
+        'test@example.com',
+        true,
+      );
+      expect(bcryptCompareSpy).toHaveBeenCalledWith(
+        'password123',
+        'hashed-password',
+      );
       expect(result.accessToken).toBe(tokens.accessToken);
     });
 
@@ -262,10 +281,9 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when password is wrong', async () => {
       const userWithPassword = { ...mockUser, password: 'hashed-password' };
-      const bcrypt = require('bcrypt');
 
       mockUsersService.findByEmail.mockResolvedValue(userWithPassword);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      bcryptCompareSpy.mockResolvedValue(false);
 
       await expect(
         service.loginWithEmailPassword('test@example.com', 'wrongpassword'),

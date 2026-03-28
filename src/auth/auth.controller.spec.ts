@@ -258,7 +258,10 @@ describe('AuthController', () => {
 
       mockAuthService.register.mockResolvedValue(tokens);
 
-      await controller.register(registerDto, mockResponse as unknown as Response);
+      await controller.register(
+        registerDto,
+        mockResponse as unknown as Response,
+      );
 
       expect(mockAuthService.register).toHaveBeenCalledWith(
         registerDto.email,

@@ -317,7 +317,9 @@ describe('AuthController (e2e)', () => {
       );
 
       // Verify user created in database
-      const createdUser = await userModel.findOne({ email: registerBody.email });
+      const createdUser = await userModel.findOne({
+        email: registerBody.email,
+      });
       expect(createdUser).toBeDefined();
       expect(createdUser?.name).toBe(registerBody.name);
     });
@@ -430,7 +432,9 @@ describe('AuthController (e2e)', () => {
         .expect(200);
 
       // Extract access_token cookie
-      const cookies = loginResponse.headers['set-cookie'] as unknown as string[];
+      const cookies = loginResponse.headers[
+        'set-cookie'
+      ] as unknown as string[];
       const accessTokenCookie = cookies.find((c: string) =>
         c.startsWith('access_token='),
       );
