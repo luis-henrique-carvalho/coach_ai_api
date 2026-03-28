@@ -1,8 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+
+// Mock bcrypt
+jest.mock('bcrypt', () => ({
+  hash: jest.fn(),
+  compare: jest.fn(),
+}));
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -25,14 +32,17 @@ describe('AuthService', () => {
   const mockUsersService = {
     findById: jest.fn(),
     findOrCreateByOAuth: jest.fn(),
+    findByEmail: jest.fn(),
+    createWithEmailPassword: jest.fn(),
   };
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
-      const config: { [key: string]: string } = {
+      const config: { [key: string]: string | number } = {
         JWT_SECRET: 'test-secret',
         JWT_ACCESS_EXPIRATION: '15m',
         JWT_REFRESH_EXPIRATION: '7d',
+        BCRYPT_ROUNDS: 12,
       };
       return config[key];
     }),
@@ -182,6 +192,94 @@ describe('AuthService', () => {
       // This test verifies the method exists and doesn't throw
       // In a real implementation, this would check a blacklist/database
       expect(true).toBe(true);
+    });
+  });
+
+  describe('register', () => {
+    it('should hash password and create user, return tokens', async () => {
+      const hashedPassword = 'hashed-password-123';
+      const tokens = { accessToken: 'access-token', refreshToken: 'refresh-token' };
+
+      // Import bcrypt after jest.mock
+      const bcrypt = require('bcrypt');
+      (bcrypt.hash as jest.Mock).mockResolvedValue(hashedPassword);
+      mockUsersService.createWithEmailPassword.mockResolvedValue(mockUser);
+      mockJwtService.sign
+        .mockReturnValueOnce(tokens.accessToken)
+        .mockReturnValueOnce(tokens.refreshToken);
+
+      const result = await service.register('test@example.com', 'Test User', 'password123');
+
+      expect(bcrypt.hash).toHaveBeenCalledWith('password123', 12);
+      expect(mockUsersService.createWithEmailPassword).toHaveBeenCalledWith(
+        'test@example.com',
+        'Test User',
+        hashedPassword,
+      );
+      expect(result.accessToken).toBe(tokens.accessToken);
+      expect(result.refreshToken).toBe(tokens.refreshToken);
+    });
+
+    it('should propagate ConflictException when email is taken', async () => {
+      const bcrypt = require('bcrypt');
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hash');
+      mockUsersService.createWithEmailPassword.mockRejectedValue(
+        new ConflictException('Email already registered'),
+      );
+
+      await expect(
+        service.register('taken@example.com', 'User', 'password123'),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('loginWithEmailPassword', () => {
+    it('should return tokens for valid credentials', async () => {
+      const userWithPassword = { ...mockUser, password: 'hashed-password' };
+      const tokens = { accessToken: 'access-token', refreshToken: 'refresh-token' };
+
+      const bcrypt = require('bcrypt');
+      mockUsersService.findByEmail.mockResolvedValue(userWithPassword);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      mockJwtService.sign
+        .mockReturnValueOnce(tokens.accessToken)
+        .mockReturnValueOnce(tokens.refreshToken);
+
+      const result = await service.loginWithEmailPassword('test@example.com', 'password123');
+
+      expect(mockUsersService.findByEmail).toHaveBeenCalledWith('test@example.com', true);
+      expect(bcrypt.compare).toHaveBeenCalledWith('password123', 'hashed-password');
+      expect(result.accessToken).toBe(tokens.accessToken);
+    });
+
+    it('should throw UnauthorizedException when user not found', async () => {
+      mockUsersService.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        service.loginWithEmailPassword('nouser@example.com', 'password123'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when password is wrong', async () => {
+      const userWithPassword = { ...mockUser, password: 'hashed-password' };
+      const bcrypt = require('bcrypt');
+
+      mockUsersService.findByEmail.mockResolvedValue(userWithPassword);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.loginWithEmailPassword('test@example.com', 'wrongpassword'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when user has no password (OAuth-only user)', async () => {
+      const oauthUser = { ...mockUser, password: undefined };
+
+      mockUsersService.findByEmail.mockResolvedValue(oauthUser);
+
+      await expect(
+        service.loginWithEmailPassword('test@example.com', 'somepassword'),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });
