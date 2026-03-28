@@ -119,10 +119,8 @@ export class AuthController {
 
   @Post('refresh')
   refresh(@Req() req: AuthRequest, @Res() res: Response) {
-    const refreshToken = (req.cookies as Record<string, unknown>)
-      ?.refresh_token as string;
-
-    if (!refreshToken) {
+    const refreshToken = req.cookies?.refresh_token;
+    if (typeof refreshToken !== 'string') {
       throw new UnauthorizedException('Refresh token not found');
     }
 
@@ -154,10 +152,8 @@ export class AuthController {
 
   @Post('logout')
   logout(@Req() req: AuthRequest, @Res() res: Response) {
-    const refreshToken = (req.cookies as Record<string, unknown>)
-      ?.refresh_token as string;
-
-    if (refreshToken) {
+    const refreshToken = req.cookies?.refresh_token;
+    if (typeof refreshToken === 'string') {
       this.authService.revokeRefreshToken(refreshToken);
     }
 
