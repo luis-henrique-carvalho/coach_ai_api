@@ -11,6 +11,10 @@ export interface OAuthProfile {
   avatar?: string;
 }
 
+interface ProviderQuery {
+  [key: string]: string;
+}
+
 @Injectable()
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
@@ -23,9 +27,9 @@ export class UsersService {
     const { provider, providerId, email, name, avatar } = profile;
 
     // First, try to find user by provider ID
-    const providerQuery: any = {};
+    const providerQuery: ProviderQuery = {};
     providerQuery[`providers.${provider}.id`] = providerId;
-    
+
     let user = await this.userModel.findOne(providerQuery).exec();
 
     if (user) {
@@ -38,7 +42,9 @@ export class UsersService {
 
       if (user) {
         // Link the new provider to existing user
-        (user.providers as any)[provider] = { id: providerId };
+        (user.providers as Record<string, { id: string }>)[provider] = {
+          id: providerId,
+        };
         await user.save();
         return user;
       }

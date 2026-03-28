@@ -6,7 +6,6 @@ import { UsersService } from '../../users/users.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
-  let usersService: UsersService;
 
   const mockUsersService = {
     findById: jest.fn(),
@@ -37,7 +36,6 @@ describe('JwtStrategy', () => {
     }).compile();
 
     strategy = module.get<JwtStrategy>(JwtStrategy);
-    usersService = module.get<UsersService>(UsersService);
 
     jest.clearAllMocks();
   });

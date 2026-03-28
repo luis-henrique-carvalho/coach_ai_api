@@ -15,11 +15,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET') || 'default-secret',
         signOptions: {
-          expiresIn: (configService.get<string>('JWT_ACCESS_EXPIRATION') ||
-            '15m') as any,
+          expiresIn:
+            configService.get<string>('JWT_ACCESS_EXPIRATION') || '15m',
         },
       }),
       inject: [ConfigService],

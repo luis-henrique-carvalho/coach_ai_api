@@ -4,6 +4,13 @@ import { Strategy } from 'passport-github2';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
 
+interface GitHubProfile {
+  id: string;
+  emails?: Array<{ value: string }>;
+  displayName: string;
+  photos?: Array<{ value: string }>;
+}
+
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   constructor(
@@ -21,16 +28,16 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   async validate(
     accessToken: string,
     refreshToken: string,
-    profile: any,
-  ): Promise<any> {
+    profile: GitHubProfile,
+  ): Promise<unknown> {
     const { id, emails, displayName, photos } = profile;
 
     const user = await this.authService.validateUser({
       provider: 'github',
       providerId: id,
-      email: emails?.[0]?.value,
+      email: emails?.[0]?.value || '',
       name: displayName,
-      avatar: photos?.[0]?.value,
+      avatar: photos?.[0]?.value || '',
     });
 
     return user;

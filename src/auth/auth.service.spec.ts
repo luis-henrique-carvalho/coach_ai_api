@@ -6,9 +6,6 @@ import { UsersService } from '../users/users.service';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let jwtService: JwtService;
-  let usersService: UsersService;
-  let configService: ConfigService;
 
   const mockUser = {
     _id: '507f1f77bcf86cd799439011',
@@ -61,9 +58,6 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    jwtService = module.get<JwtService>(JwtService);
-    usersService = module.get<UsersService>(UsersService);
-    configService = module.get<ConfigService>(ConfigService);
 
     // Clear all mocks before each test
     jest.clearAllMocks();
@@ -74,7 +68,7 @@ describe('AuthService', () => {
   });
 
   describe('generateTokens', () => {
-    it('should create access token with 15min expiration', async () => {
+    it('should create access token with 15min expiration', () => {
       const accessToken = 'access-token-123';
       const refreshToken = 'refresh-token-456';
 
@@ -82,7 +76,7 @@ describe('AuthService', () => {
         .mockReturnValueOnce(accessToken)
         .mockReturnValueOnce(refreshToken);
 
-      const result = await service.generateTokens(mockUser._id);
+      const result = service.generateTokens(mockUser._id);
 
       expect(result.accessToken).toBe(accessToken);
       expect(mockJwtService.sign).toHaveBeenCalledWith(
@@ -91,7 +85,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('should create refresh token with 7day expiration', async () => {
+    it('should create refresh token with 7day expiration', () => {
       const accessToken = 'access-token-123';
       const refreshToken = 'refresh-token-456';
 
@@ -99,7 +93,7 @@ describe('AuthService', () => {
         .mockReturnValueOnce(accessToken)
         .mockReturnValueOnce(refreshToken);
 
-      const result = await service.generateTokens(mockUser._id);
+      const result = service.generateTokens(mockUser._id);
 
       expect(result.refreshToken).toBe(refreshToken);
       expect(mockJwtService.sign).toHaveBeenCalledWith(
@@ -110,49 +104,49 @@ describe('AuthService', () => {
   });
 
   describe('validateRefreshToken', () => {
-    it('should return userId for valid token', async () => {
+    it('should return userId for valid token', () => {
       const refreshToken = 'valid-refresh-token';
       const payload = { sub: mockUser._id, type: 'refresh' };
 
       mockJwtService.verify.mockReturnValue(payload);
 
-      const result = await service.validateRefreshToken(refreshToken);
+      const result = service.validateRefreshToken(refreshToken);
 
       expect(result).toBe(mockUser._id);
       expect(mockJwtService.verify).toHaveBeenCalledWith(refreshToken);
     });
 
-    it('should return null for expired token', async () => {
+    it('should return null for expired token', () => {
       const refreshToken = 'expired-token';
 
       mockJwtService.verify.mockImplementation(() => {
         throw new Error('TokenExpiredError');
       });
 
-      const result = await service.validateRefreshToken(refreshToken);
+      const result = service.validateRefreshToken(refreshToken);
 
       expect(result).toBeNull();
     });
 
-    it('should return null for invalid token', async () => {
+    it('should return null for invalid token', () => {
       const refreshToken = 'invalid-token';
 
       mockJwtService.verify.mockImplementation(() => {
         throw new Error('JsonWebTokenError');
       });
 
-      const result = await service.validateRefreshToken(refreshToken);
+      const result = service.validateRefreshToken(refreshToken);
 
       expect(result).toBeNull();
     });
 
-    it('should return null for non-refresh token type', async () => {
+    it('should return null for non-refresh token type', () => {
       const accessToken = 'access-token';
       const payload = { sub: mockUser._id, type: 'access' };
 
       mockJwtService.verify.mockReturnValue(payload);
 
-      const result = await service.validateRefreshToken(accessToken);
+      const result = service.validateRefreshToken(accessToken);
 
       expect(result).toBeNull();
     });
@@ -180,10 +174,10 @@ describe('AuthService', () => {
   });
 
   describe('revokeRefreshToken', () => {
-    it('should mark token as revoked', async () => {
+    it('should mark token as revoked', () => {
       const refreshToken = 'token-to-revoke';
 
-      await service.revokeRefreshToken(refreshToken);
+      service.revokeRefreshToken(refreshToken);
 
       // This test verifies the method exists and doesn't throw
       // In a real implementation, this would check a blacklist/database

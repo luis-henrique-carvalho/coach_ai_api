@@ -3,11 +3,16 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { getModelToken } from '@nestjs/mongoose';
-import { User } from '../src/users/schemas/user.schema';
+import { User, UserDocument } from '../src/users/schemas/user.schema';
+import { AuthService } from '../src/auth/auth.service';
+import { UsersService } from '../src/users/users.service';
+import { Model } from 'mongoose';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
-  let userModel: any;
+  let userModel: Model<UserDocument>;
+  let authService: AuthService;
+  let usersService: UsersService;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -18,6 +23,8 @@ describe('AuthController (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe());
 
     userModel = moduleFixture.get(getModelToken(User.name));
+    authService = moduleFixture.get(AuthService);
+    usersService = moduleFixture.get(UsersService);
 
     await app.init();
   });
@@ -65,21 +72,20 @@ describe('AuthController (e2e)', () => {
       };
 
       // Simulate the OAuth callback flow
-      const authService = app.get('AuthService');
-      const usersService = app.get('UsersService');
-
       const user = await usersService.findOrCreateByOAuth(mockGoogleProfile);
       expect(user).toBeDefined();
       expect(user.email).toBe(mockGoogleProfile.email);
 
-      const tokens = await authService.generateTokens(user._id);
+      const tokens = authService.generateTokens(user._id.toString());
       expect(tokens.accessToken).toBeDefined();
       expect(tokens.refreshToken).toBeDefined();
 
       // Verify user was created in database
       const savedUser = await userModel.findById(user._id);
       expect(savedUser).toBeDefined();
-      expect(savedUser.providers.google.id).toBe(mockGoogleProfile.providerId);
+      expect(savedUser?.providers.google?.id).toBe(
+        mockGoogleProfile.providerId,
+      );
     });
 
     it('should create user and set cookies after GitHub OAuth', async () => {
@@ -91,20 +97,19 @@ describe('AuthController (e2e)', () => {
         avatar: 'https://github.com/avatar.jpg',
       };
 
-      const authService = app.get('AuthService');
-      const usersService = app.get('UsersService');
-
       const user = await usersService.findOrCreateByOAuth(mockGithubProfile);
       expect(user).toBeDefined();
       expect(user.email).toBe(mockGithubProfile.email);
 
-      const tokens = await authService.generateTokens(user._id);
+      const tokens = authService.generateTokens(user._id.toString());
       expect(tokens.accessToken).toBeDefined();
       expect(tokens.refreshToken).toBeDefined();
 
       const savedUser = await userModel.findById(user._id);
       expect(savedUser).toBeDefined();
-      expect(savedUser.providers.github.id).toBe(mockGithubProfile.providerId);
+      expect(savedUser?.providers.github?.id).toBe(
+        mockGithubProfile.providerId,
+      );
     });
   });
 
@@ -120,8 +125,7 @@ describe('AuthController (e2e)', () => {
       });
 
       // Generate tokens
-      const authService = app.get('AuthService');
-      const tokens = await authService.generateTokens(testUser._id.toString());
+      const tokens = authService.generateTokens(testUser._id.toString());
 
       // Call /api/auth/me with access token
       return request(app.getHttpServer())
@@ -129,8 +133,12 @@ describe('AuthController (e2e)', () => {
         .set('Cookie', [`access_token=${tokens.accessToken}`])
         .expect(200)
         .expect((res) => {
-          expect(res.body.email).toBe(testUser.email);
-          expect(res.body.name).toBe(testUser.name);
+          expect((res.body as Record<string, unknown>).email).toBe(
+            testUser.email,
+          );
+          expect((res.body as Record<string, unknown>).name).toBe(
+            testUser.name,
+          );
         });
     });
 
@@ -151,8 +159,7 @@ describe('AuthController (e2e)', () => {
       });
 
       // Generate initial tokens
-      const authService = app.get('AuthService');
-      const tokens = await authService.generateTokens(testUser._id.toString());
+      const tokens = authService.generateTokens(testUser._id.toString());
 
       // Call refresh endpoint
       return request(app.getHttpServer())
@@ -160,9 +167,9 @@ describe('AuthController (e2e)', () => {
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200)
         .expect((res) => {
-          expect(res.body.success).toBe(true);
+          expect((res.body as Record<string, unknown>).success).toBe(true);
           // Check that new cookies were set
-          const cookies = res.headers['set-cookie'] as unknown as string[];
+          const cookies = res.headers['set-cookie'] as string[];
           expect(cookies).toBeDefined();
           expect(
             cookies.some((c: string) => c.startsWith('access_token=')),
@@ -193,8 +200,7 @@ describe('AuthController (e2e)', () => {
       });
 
       // Generate tokens
-      const authService = app.get('AuthService');
-      const tokens = await authService.generateTokens(testUser._id.toString());
+      const tokens = authService.generateTokens(testUser._id.toString());
 
       // Logout
       const response = await request(app.getHttpServer())
@@ -202,10 +208,10 @@ describe('AuthController (e2e)', () => {
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200);
 
-      expect(response.body.success).toBe(true);
+      expect((response.body as Record<string, unknown>).success).toBe(true);
 
       // Verify cookies were cleared
-      const cookies = response.headers['set-cookie'] as unknown as string[];
+      const cookies = response.headers['set-cookie'] as string[];
       expect(cookies).toBeDefined();
       expect(cookies.some((c: string) => c.includes('access_token=;'))).toBe(
         true,
@@ -228,8 +234,7 @@ describe('AuthController (e2e)', () => {
       });
 
       // Generate tokens
-      const authService = app.get('AuthService');
-      const tokens = await authService.generateTokens(testUser._id.toString());
+      const tokens = authService.generateTokens(testUser._id.toString());
 
       // Simulate access token expiration by trying to use refresh token
       const refreshResponse = await request(app.getHttpServer())
@@ -237,23 +242,29 @@ describe('AuthController (e2e)', () => {
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200);
 
-      expect(refreshResponse.body.success).toBe(true);
+      expect((refreshResponse.body as Record<string, unknown>).success).toBe(
+        true,
+      );
 
       // Extract new access token from cookies
-      const cookies = refreshResponse.headers['set-cookie'] as unknown as string[];
+      const cookies = refreshResponse.headers['set-cookie'] as string[];
       const accessTokenCookie = cookies.find((c: string) =>
         c.startsWith('access_token='),
       );
       expect(accessTokenCookie).toBeDefined();
 
       // Verify we can access protected route with new token
-      const newAccessToken = accessTokenCookie!.split(';')[0].split('=')[1];
+      const newAccessToken = (accessTokenCookie as string)
+        .split(';')[0]
+        .split('=')[1];
       return request(app.getHttpServer())
         .get('/api/auth/me')
         .set('Cookie', [`access_token=${newAccessToken}`])
         .expect(200)
         .expect((res) => {
-          expect(res.body.email).toBe(testUser.email);
+          expect((res.body as Record<string, unknown>).email).toBe(
+            testUser.email,
+          );
         });
     });
   });

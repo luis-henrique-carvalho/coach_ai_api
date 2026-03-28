@@ -8,11 +8,20 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UserResponseDto } from './dto/user-response.dto';
+
+interface AuthRequest extends Request {
+  user?: {
+    _id: string;
+    email: string;
+    name: string;
+    avatar: string;
+  };
+}
 
 @Controller('api/auth')
 export class AuthController {
@@ -29,9 +38,12 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleCallback(@Req() req: any, @Res() res: Response) {
+  googleCallback(@Req() req: AuthRequest, @Res() res: Response) {
     const user = req.user;
-    const tokens = await this.authService.generateTokens(user._id.toString());
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    const tokens = this.authService.generateTokens(user._id);
 
     // Set httpOnly cookies
     res.cookie('access_token', tokens.accessToken, {
@@ -49,7 +61,8 @@ export class AuthController {
     });
 
     // Redirect to frontend
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
     res.redirect(frontendUrl);
   }
 
@@ -61,9 +74,12 @@ export class AuthController {
 
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
-  async githubCallback(@Req() req: any, @Res() res: Response) {
+  githubCallback(@Req() req: AuthRequest, @Res() res: Response) {
     const user = req.user;
-    const tokens = await this.authService.generateTokens(user._id.toString());
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    const tokens = this.authService.generateTokens(user._id);
 
     // Set httpOnly cookies
     res.cookie('access_token', tokens.accessToken, {
@@ -81,16 +97,20 @@ export class AuthController {
     });
 
     // Redirect to frontend
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
     res.redirect(frontendUrl);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  getProfile(@Req() req: any): UserResponseDto {
+  getProfile(@Req() req: AuthRequest): UserResponseDto {
     const user = req.user;
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
     return {
-      id: user._id.toString(),
+      id: user._id,
       email: user.email,
       name: user.name,
       avatar: user.avatar,
@@ -98,20 +118,21 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Req() req: any, @Res() res: Response) {
-    const refreshToken = req.cookies?.refresh_token;
+  refresh(@Req() req: AuthRequest, @Res() res: Response) {
+    const refreshToken = (req.cookies as Record<string, unknown>)
+      ?.refresh_token as string;
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
 
-    const userId = await this.authService.validateRefreshToken(refreshToken);
+    const userId = this.authService.validateRefreshToken(refreshToken);
 
     if (!userId) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const tokens = await this.authService.generateTokens(userId);
+    const tokens = this.authService.generateTokens(userId);
 
     // Set new cookies
     res.cookie('access_token', tokens.accessToken, {
@@ -132,11 +153,12 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Req() req: any, @Res() res: Response) {
-    const refreshToken = req.cookies?.refresh_token;
+  logout(@Req() req: AuthRequest, @Res() res: Response) {
+    const refreshToken = (req.cookies as Record<string, unknown>)
+      ?.refresh_token as string;
 
     if (refreshToken) {
-      await this.authService.revokeRefreshToken(refreshToken);
+      this.authService.revokeRefreshToken(refreshToken);
     }
 
     res.clearCookie('access_token');

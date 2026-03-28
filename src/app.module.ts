@@ -14,8 +14,11 @@ import { UsersModule } from './users/users.module';
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI', 'mongodb://localhost:27017/coach_ai'),
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.get<string>(
+          'MONGODB_URI',
+          'mongodb://localhost:27017/coach_ai',
+        ),
         autoIndex: true,
         retryWrites: true,
       }),

@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { UsersService } from './users.service';
 import { User } from './schemas/user.schema';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let model: Model<User>;
 
   const mockUser = {
     _id: '507f1f77bcf86cd799439011',
@@ -42,8 +40,7 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    model = module.get<Model<User>>(getModelToken(User.name));
-    
+
     // Clear all mocks before each test
     jest.clearAllMocks();
   });

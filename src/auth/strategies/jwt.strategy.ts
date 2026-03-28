@@ -5,6 +5,11 @@ import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { UsersService } from '../../users/users.service';
 
+interface JwtPayload {
+  type: string;
+  sub: string;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
@@ -14,7 +19,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (request: Request) => {
-          return request?.cookies?.access_token;
+          return (request?.cookies as Record<string, unknown>)
+            ?.access_token as string;
         },
       ]),
       ignoreExpiration: false,
@@ -22,14 +28,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: JwtPayload) {
     // Verify it's an access token
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type');
     }
 
     const user = await this.usersService.findById(payload.sub);
-    
+
     if (!user) {
       throw new UnauthorizedException('User not found');
     }

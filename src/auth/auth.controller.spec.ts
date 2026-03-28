@@ -1,13 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
-  let authService: AuthService;
-  let configService: ConfigService;
 
   const mockAuthService = {
     generateTokens: jest.fn(),
@@ -34,12 +31,12 @@ describe('AuthController', () => {
     },
   };
 
-  const mockResponse = {
-    cookie: jest.fn().mockReturnThis(),
-    clearCookie: jest.fn().mockReturnThis(),
-    redirect: jest.fn().mockReturnThis(),
-    json: jest.fn().mockReturnThis(),
-  } as unknown as Response;
+  const mockResponse = {} as Record<string, jest.Mock>;
+
+  mockResponse.cookie = jest.fn((this: void) => mockResponse);
+  mockResponse.clearCookie = jest.fn((this: void) => mockResponse);
+  mockResponse.redirect = jest.fn((this: void) => mockResponse);
+  mockResponse.json = jest.fn((this: void) => mockResponse);
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -57,8 +54,6 @@ describe('AuthController', () => {
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
-    authService = module.get<AuthService>(AuthService);
-    configService = module.get<ConfigService>(ConfigService);
 
     jest.clearAllMocks();
   });
@@ -68,20 +63,18 @@ describe('AuthController', () => {
   });
 
   describe('googleCallback', () => {
-    it('should set httpOnly cookies and redirect to frontend', async () => {
+    it('should set httpOnly cookies and redirect to frontend', () => {
       const tokens = {
         accessToken: 'access-token-123',
         refreshToken: 'refresh-token-456',
       };
 
-      mockAuthService.generateTokens.mockResolvedValue(tokens);
+      mockAuthService.generateTokens.mockReturnValue(tokens);
 
       const req = { user: mockUser };
-      await controller.googleCallback(req, mockResponse);
+      controller.googleCallback(req, mockResponse);
 
-      expect(mockAuthService.generateTokens).toHaveBeenCalledWith(
-        mockUser._id,
-      );
+      expect(mockAuthService.generateTokens).toHaveBeenCalledWith(mockUser._id);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
         'access_token',
         tokens.accessToken,
@@ -109,20 +102,18 @@ describe('AuthController', () => {
   });
 
   describe('githubCallback', () => {
-    it('should set httpOnly cookies and redirect to frontend', async () => {
+    it('should set httpOnly cookies and redirect to frontend', () => {
       const tokens = {
         accessToken: 'access-token-789',
         refreshToken: 'refresh-token-012',
       };
 
-      mockAuthService.generateTokens.mockResolvedValue(tokens);
+      mockAuthService.generateTokens.mockReturnValue(tokens);
 
       const req = { user: mockUser };
-      await controller.githubCallback(req, mockResponse);
+      controller.githubCallback(req, mockResponse);
 
-      expect(mockAuthService.generateTokens).toHaveBeenCalledWith(
-        mockUser._id,
-      );
+      expect(mockAuthService.generateTokens).toHaveBeenCalledWith(mockUser._id);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
         'access_token',
         tokens.accessToken,
@@ -159,7 +150,7 @@ describe('AuthController', () => {
   });
 
   describe('refresh', () => {
-    it('should generate new tokens from refresh token', async () => {
+    it('should generate new tokens from refresh token', () => {
       const oldRefreshToken = 'old-refresh-token';
       const userId = '507f1f77bcf86cd799439011';
       const newTokens = {
@@ -173,10 +164,10 @@ describe('AuthController', () => {
         },
       };
 
-      mockAuthService.validateRefreshToken.mockResolvedValue(userId);
-      mockAuthService.generateTokens.mockResolvedValue(newTokens);
+      mockAuthService.validateRefreshToken.mockReturnValue(userId);
+      mockAuthService.generateTokens.mockReturnValue(newTokens);
 
-      await controller.refresh(req, mockResponse);
+      controller.refresh(req, mockResponse);
 
       expect(mockAuthService.validateRefreshToken).toHaveBeenCalledWith(
         oldRefreshToken,
@@ -195,21 +186,21 @@ describe('AuthController', () => {
       expect(mockResponse.json).toHaveBeenCalledWith({ success: true });
     });
 
-    it('should throw error if refresh token is invalid', async () => {
+    it('should throw error if refresh token is invalid', () => {
       const req = {
         cookies: {
           refresh_token: 'invalid-token',
         },
       };
 
-      mockAuthService.validateRefreshToken.mockResolvedValue(null);
+      mockAuthService.validateRefreshToken.mockReturnValue(null);
 
-      await expect(controller.refresh(req, mockResponse)).rejects.toThrow();
+      expect(() => controller.refresh(req, mockResponse)).toThrow();
     });
   });
 
   describe('logout', () => {
-    it('should clear cookies and revoke refresh token', async () => {
+    it('should clear cookies and revoke refresh token', () => {
       const refreshToken = 'token-to-revoke';
       const req = {
         cookies: {
@@ -217,7 +208,7 @@ describe('AuthController', () => {
         },
       };
 
-      await controller.logout(req, mockResponse);
+      controller.logout(req, mockResponse);
 
       expect(mockAuthService.revokeRefreshToken).toHaveBeenCalledWith(
         refreshToken,

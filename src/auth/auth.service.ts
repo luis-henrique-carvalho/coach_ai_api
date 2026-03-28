@@ -4,6 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService, OAuthProfile } from '../users/users.service';
 import { UserDocument } from '../users/schemas/user.schema';
 
+interface TokenPayload {
+  sub: string;
+  type: string;
+}
+
 @Injectable()
 export class AuthService {
   private revokedTokens: Set<string> = new Set();
@@ -14,10 +19,10 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async generateTokens(userId: string): Promise<{
+  generateTokens(userId: string): {
     accessToken: string;
     refreshToken: string;
-  }> {
+  } {
     const accessToken = this.jwtService.sign(
       { sub: userId, type: 'access' },
       { expiresIn: '15m' },
@@ -31,14 +36,14 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async validateRefreshToken(token: string): Promise<string | null> {
+  validateRefreshToken(token: string): string | null {
     try {
       // Check if token is revoked
       if (this.revokedTokens.has(token)) {
         return null;
       }
 
-      const payload = this.jwtService.verify(token);
+      const payload = this.jwtService.verify<TokenPayload>(token);
 
       // Verify it's a refresh token
       if (payload.type !== 'refresh') {
@@ -46,12 +51,12 @@ export class AuthService {
       }
 
       return payload.sub;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
 
-  async revokeRefreshToken(token: string): Promise<void> {
+  revokeRefreshToken(token: string): void {
     this.revokedTokens.add(token);
   }
 

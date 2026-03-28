@@ -5,7 +5,6 @@ import { AuthService } from '../auth.service';
 
 describe('GoogleStrategy', () => {
   let strategy: GoogleStrategy;
-  let authService: AuthService;
 
   const mockAuthService = {
     validateUser: jest.fn(),
@@ -38,7 +37,6 @@ describe('GoogleStrategy', () => {
     }).compile();
 
     strategy = module.get<GoogleStrategy>(GoogleStrategy);
-    authService = module.get<AuthService>(AuthService);
 
     jest.clearAllMocks();
   });
