@@ -14,6 +14,9 @@ export class User {
   @Prop()
   avatar?: string;
 
+  @Prop({ select: false }) // Never returned in queries by default
+  password?: string;
+
   @Prop({ type: Object, default: {} })
   providers!: {
     google?: {
