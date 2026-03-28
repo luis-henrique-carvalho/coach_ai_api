@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { GoalsModule } from './goals/goals.module';
+import { HabitsModule } from './habits/habits.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { UsersModule } from './users/users.module';
     }),
     AuthModule,
     UsersModule,
+    GoalsModule,
+    HabitsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

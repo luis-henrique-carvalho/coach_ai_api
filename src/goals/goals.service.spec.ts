@@ -98,9 +98,7 @@ describe('GoalsService', () => {
   // Test 2: findAllByUser returns goals with progress stats
   describe('findAllByUser', () => {
     it('should return goals with progress statistics', async () => {
-      const goals = [
-        { ...mockGoal, _id: mockGoalId },
-      ];
+      const goals = [{ ...mockGoal, _id: mockGoalId }];
       goalModel.find.mockReturnValue({
         exec: jest.fn().mockResolvedValue(goals),
       });
@@ -112,13 +110,11 @@ describe('GoalsService', () => {
 
       expect(goalModel.find).toHaveBeenCalledWith({ userId: mockUserId });
       expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        goal: expect.objectContaining({ name: 'Learn TypeScript' }),
-        progress: {
-          total: 3,
-          completed: 2,
-          percentage: 67,
-        },
+      expect(result[0].goal.name).toBe('Learn TypeScript');
+      expect(result[0].progress).toMatchObject({
+        total: 3,
+        completed: 2,
+        percentage: 67,
       });
     });
   });
@@ -168,7 +164,9 @@ describe('GoalsService', () => {
 
       await service.removeGoal(mockGoalId, mockUserId);
 
-      expect(subtaskModel.deleteMany).toHaveBeenCalledWith({ goalId: mockGoalId });
+      expect(subtaskModel.deleteMany).toHaveBeenCalledWith({
+        goalId: mockGoalId,
+      });
       expect(goalModel.findByIdAndDelete).toHaveBeenCalledWith(mockGoalId);
     });
   });
@@ -198,8 +196,16 @@ describe('GoalsService', () => {
 
     // Test 7: addSubtask creates sub-subtask with valid parentId
     it('should create a sub-subtask when valid parentId provided', async () => {
-      const parentSubtask = { ...mockSubtask, _id: mockParentSubtaskId, parentId: null };
-      const subSubtask = { ...mockSubtask, _id: new Types.ObjectId().toHexString(), parentId: mockParentSubtaskId };
+      const parentSubtask = {
+        ...mockSubtask,
+        _id: mockParentSubtaskId,
+        parentId: null,
+      };
+      const subSubtask = {
+        ...mockSubtask,
+        _id: new Types.ObjectId().toHexString(),
+        parentId: mockParentSubtaskId,
+      };
 
       goalModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue(mockGoal),
@@ -255,13 +261,15 @@ describe('GoalsService', () => {
       const subtaskDoc = {
         ...mockSubtask,
         isCompleted: false,
-        save: jest.fn().mockResolvedValue({ ...mockSubtask, isCompleted: true }),
+        save: jest
+          .fn()
+          .mockResolvedValue({ ...mockSubtask, isCompleted: true }),
       };
       subtaskModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue(subtaskDoc),
       });
 
-      const result = await service.toggleSubtask(mockGoalId, mockSubtaskId, mockUserId);
+      await service.toggleSubtask(mockGoalId, mockSubtaskId, mockUserId);
 
       expect(subtaskDoc.isCompleted).toBe(true);
       expect(subtaskDoc.save).toHaveBeenCalled();
@@ -271,7 +279,9 @@ describe('GoalsService', () => {
       const subtaskDoc = {
         ...mockSubtask,
         isCompleted: true,
-        save: jest.fn().mockResolvedValue({ ...mockSubtask, isCompleted: false }),
+        save: jest
+          .fn()
+          .mockResolvedValue({ ...mockSubtask, isCompleted: false }),
       };
       subtaskModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue(subtaskDoc),
@@ -299,8 +309,12 @@ describe('GoalsService', () => {
 
       await service.removeSubtask(mockGoalId, mockSubtaskId, mockUserId);
 
-      expect(subtaskModel.findByIdAndDelete).toHaveBeenCalledWith(mockSubtaskId);
-      expect(subtaskModel.deleteMany).toHaveBeenCalledWith({ parentId: mockSubtaskId });
+      expect(subtaskModel.findByIdAndDelete).toHaveBeenCalledWith(
+        mockSubtaskId,
+      );
+      expect(subtaskModel.deleteMany).toHaveBeenCalledWith({
+        parentId: mockSubtaskId,
+      });
     });
   });
 
