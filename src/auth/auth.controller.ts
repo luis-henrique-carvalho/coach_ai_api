@@ -28,7 +28,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-@Controller('api/auth')
+@Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,

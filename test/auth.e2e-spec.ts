@@ -56,10 +56,10 @@ describe('AuthController (e2e)', () => {
     await userModel.deleteMany({});
   });
 
-  describe('/api/auth/google (GET)', () => {
+  describe('/auth/google (GET)', () => {
     it('should redirect to Google OAuth', () => {
       return request(app.getHttpServer() as string)
-        .get('/api/auth/google')
+        .get('/auth/google')
         .expect(302)
         .expect((res) => {
           expect(res.headers.location).toContain('accounts.google.com');
@@ -67,10 +67,10 @@ describe('AuthController (e2e)', () => {
     });
   });
 
-  describe('/api/auth/github (GET)', () => {
+  describe('/auth/github (GET)', () => {
     it('should redirect to GitHub OAuth', () => {
       return request(app.getHttpServer() as string)
-        .get('/api/auth/github')
+        .get('/auth/github')
         .expect(302)
         .expect((res) => {
           expect(res.headers.location).toContain('github.com');
@@ -131,7 +131,7 @@ describe('AuthController (e2e)', () => {
     });
   });
 
-  describe('/api/auth/me (GET)', () => {
+  describe('/auth/me (GET)', () => {
     it('should return user when authenticated', async () => {
       // Create a test user
       const testUser = await userModel.create({
@@ -145,9 +145,9 @@ describe('AuthController (e2e)', () => {
       // Generate tokens
       const tokens = authService.generateTokens(testUser._id.toString());
 
-      // Call /api/auth/me with access token
+      // Call /auth/me with access token
       return request(app.getHttpServer() as string)
-        .get('/api/auth/me')
+        .get('/auth/me')
         .set('Cookie', [`access_token=${tokens.accessToken}`])
         .expect(200)
         .expect((res) => {
@@ -162,12 +162,12 @@ describe('AuthController (e2e)', () => {
 
     it('should return 401 when not authenticated', () => {
       return request(app.getHttpServer() as string)
-        .get('/api/auth/me')
+        .get('/auth/me')
         .expect(401);
     });
   });
 
-  describe('/api/auth/refresh (POST)', () => {
+  describe('/auth/refresh (POST)', () => {
     it('should generate new tokens from valid refresh token', async () => {
       // Create a test user
       const testUser = await userModel.create({
@@ -183,7 +183,7 @@ describe('AuthController (e2e)', () => {
 
       // Call refresh endpoint
       return request(app.getHttpServer() as string)
-        .post('/api/auth/refresh')
+        .post('/auth/refresh')
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200)
         .expect((res) => {
@@ -202,13 +202,13 @@ describe('AuthController (e2e)', () => {
 
     it('should return 401 for invalid refresh token', () => {
       return request(app.getHttpServer() as string)
-        .post('/api/auth/refresh')
+        .post('/auth/refresh')
         .set('Cookie', ['refresh_token=invalid-token'])
         .expect(401);
     });
   });
 
-  describe('/api/auth/logout (POST)', () => {
+  describe('/auth/logout (POST)', () => {
     it('should clear cookies and revoke token', async () => {
       // Create a test user
       const testUser = await userModel.create({
@@ -224,7 +224,7 @@ describe('AuthController (e2e)', () => {
 
       // Logout
       const response = await request(app.getHttpServer() as string)
-        .post('/api/auth/logout')
+        .post('/auth/logout')
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200);
 
@@ -258,7 +258,7 @@ describe('AuthController (e2e)', () => {
 
       // Simulate access token expiration by trying to use refresh token
       const refreshResponse = await request(app.getHttpServer() as string)
-        .post('/api/auth/refresh')
+        .post('/auth/refresh')
         .set('Cookie', [`refresh_token=${tokens.refreshToken}`])
         .expect(200);
 
@@ -280,7 +280,7 @@ describe('AuthController (e2e)', () => {
         .split(';')[0]
         .split('=')[1];
       return request(app.getHttpServer() as string)
-        .get('/api/auth/me')
+        .get('/auth/me')
         .set('Cookie', [`access_token=${newAccessToken}`])
         .expect(200)
         .expect((res) => {
@@ -291,7 +291,7 @@ describe('AuthController (e2e)', () => {
     });
   });
 
-  describe('/api/auth/register (POST)', () => {
+  describe('/auth/register (POST)', () => {
     it('should create user and set JWT cookies', async () => {
       const registerBody = {
         email: 'register-e2e@example.com',
@@ -300,7 +300,7 @@ describe('AuthController (e2e)', () => {
       };
 
       const response = await request(app.getHttpServer() as string)
-        .post('/api/auth/register')
+        .post('/auth/register')
         .send(registerBody)
         .expect(201);
 
@@ -333,40 +333,40 @@ describe('AuthController (e2e)', () => {
 
       // Register once
       await request(app.getHttpServer() as string)
-        .post('/api/auth/register')
+        .post('/auth/register')
         .send(existingUser)
         .expect(201);
 
       // Register again with same email
       await request(app.getHttpServer() as string)
-        .post('/api/auth/register')
+        .post('/auth/register')
         .send(existingUser)
         .expect(409);
     });
 
     it('should return 400 for invalid body (missing name)', async () => {
       await request(app.getHttpServer() as string)
-        .post('/api/auth/register')
+        .post('/auth/register')
         .send({ email: 'bad@example.com', password: 'password123' })
         .expect(400);
     });
 
     it('should return 400 for short password (less than 8 chars)', async () => {
       await request(app.getHttpServer() as string)
-        .post('/api/auth/register')
+        .post('/auth/register')
         .send({ email: 'bad@example.com', password: 'short', name: 'User' })
         .expect(400);
     });
 
     it('should return 400 for invalid email format', async () => {
       await request(app.getHttpServer() as string)
-        .post('/api/auth/register')
+        .post('/auth/register')
         .send({ email: 'not-an-email', password: 'password123', name: 'User' })
         .expect(400);
     });
   });
 
-  describe('/api/auth/login (POST)', () => {
+  describe('/auth/login (POST)', () => {
     const testUser = {
       email: 'login-e2e@example.com',
       password: 'securepassword123',
@@ -376,13 +376,13 @@ describe('AuthController (e2e)', () => {
     beforeEach(async () => {
       // Register a user before each login test
       await request(app.getHttpServer() as string)
-        .post('/api/auth/register')
+        .post('/auth/register')
         .send(testUser);
     });
 
     it('should return JWT cookies for valid credentials', async () => {
       const response = await request(app.getHttpServer() as string)
-        .post('/api/auth/login')
+        .post('/auth/login')
         .send({ email: testUser.email, password: testUser.password })
         .expect(200);
 
@@ -399,14 +399,14 @@ describe('AuthController (e2e)', () => {
 
     it('should return 401 for wrong password', async () => {
       await request(app.getHttpServer() as string)
-        .post('/api/auth/login')
+        .post('/auth/login')
         .send({ email: testUser.email, password: 'wrongpassword' })
         .expect(401);
     });
 
     it('should return 401 for non-existent user', async () => {
       await request(app.getHttpServer() as string)
-        .post('/api/auth/login')
+        .post('/auth/login')
         .send({ email: 'nouser@example.com', password: 'password123' })
         .expect(401);
     });
@@ -420,14 +420,14 @@ describe('AuthController (e2e)', () => {
       });
 
       await request(app.getHttpServer() as string)
-        .post('/api/auth/login')
+        .post('/auth/login')
         .send({ email: 'oauth-only@example.com', password: 'somepassword' })
         .expect(401);
     });
 
-    it('should allow /api/auth/me access after login', async () => {
+    it('should allow /auth/me access after login', async () => {
       const loginResponse = await request(app.getHttpServer() as string)
-        .post('/api/auth/login')
+        .post('/auth/login')
         .send({ email: testUser.email, password: testUser.password })
         .expect(200);
 
@@ -443,9 +443,9 @@ describe('AuthController (e2e)', () => {
         .split(';')[0]
         .split('=')[1];
 
-      // Use access token to call /api/auth/me
+      // Use access token to call /auth/me
       const meResponse = await request(app.getHttpServer() as string)
-        .get('/api/auth/me')
+        .get('/auth/me')
         .set('Cookie', [`access_token=${accessToken}`])
         .expect(200);
 
