@@ -32,22 +32,22 @@ describe('AuthController', () => {
     },
   };
 
-  const mockResponse: Partial<Response> = {};
+  const createMockResponse = (): Response => {
+    const mockResp: any = {};
+    mockResp.cookie = jest.fn(() => mockResp);
+    mockResp.clearCookie = jest.fn(() => mockResp);
+    mockResp.redirect = jest.fn(() => mockResp);
+    mockResp.json = jest.fn(() => mockResp);
+    mockResp.status = jest.fn(() => mockResp);
+    mockResp.send = jest.fn(() => mockResp);
+    return mockResp;
+  };
 
-  mockResponse.cookie = jest.fn(function (this: void) {
-    return mockResponse;
-  });
-  mockResponse.clearCookie = jest.fn(function (this: void) {
-    return mockResponse;
-  });
-  mockResponse.redirect = jest.fn(function (this: void) {
-    return mockResponse;
-  });
-  mockResponse.json = jest.fn(function (this: void) {
-    return mockResponse;
-  });
+  let mockResponse: Response;
 
   beforeEach(async () => {
+    mockResponse = createMockResponse();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
