@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import type { StringValue } from 'ms';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersModule } from '../users/users.module';
@@ -26,7 +27,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         // but TypeScript cannot statically verify that the string matches the required format.
 
         config.signOptions = {
-          expiresIn: (expiresIn || '15m') as string | number,
+          expiresIn: (expiresIn || '15m') as StringValue | number,
         };
         return config;
       },
