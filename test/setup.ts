@@ -15,6 +15,7 @@ export const teardownTestDB = async () => {
 };
 
 export const clearTestDB = async (connection: Connection) => {
+  if (!connection.db) return;
   const collections = await connection.db.collections();
   for (const collection of collections) {
     await collection.deleteMany({});
