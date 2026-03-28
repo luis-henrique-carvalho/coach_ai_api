@@ -35,10 +35,7 @@ export class GoalsService {
     @InjectModel(Subtask.name) private subtaskModel: Model<SubtaskDocument>,
   ) {}
 
-  async createGoal(
-    userId: string,
-    dto: CreateGoalDto,
-  ): Promise<GoalDocument> {
+  async createGoal(userId: string, dto: CreateGoalDto): Promise<GoalDocument> {
     return this.goalModel.create({
       userId,
       name: dto.name,
@@ -57,10 +54,11 @@ export class GoalsService {
     return results;
   }
 
-  async findOne(id: string, userId: string): Promise<{ goal: GoalDocument; subtasks: SubtaskWithChildren[] }> {
-    const goal = await this.goalModel
-      .findOne({ _id: id, userId })
-      .exec();
+  async findOne(
+    id: string,
+    userId: string,
+  ): Promise<{ goal: GoalDocument; subtasks: SubtaskWithChildren[] }> {
+    const goal = await this.goalModel.findOne({ _id: id, userId }).exec();
 
     if (!goal) {
       throw new NotFoundException('Goal not found');
@@ -73,7 +71,9 @@ export class GoalsService {
       .exec();
 
     // Build tree: top-level subtasks with children
-    const topLevel = allSubtasks.filter((s) => s.parentId === null || s.parentId === undefined);
+    const topLevel = allSubtasks.filter(
+      (s) => s.parentId === null || s.parentId === undefined,
+    );
     const subtasks: SubtaskWithChildren[] = topLevel.map((parent) => {
       const children = allSubtasks.filter(
         (s) => s.parentId && s.parentId.toString() === parent._id.toString(),
@@ -223,8 +223,7 @@ export class GoalsService {
       isCompleted: true,
     });
 
-    const percentage =
-      total > 0 ? Math.round((completed / total) * 100) : 0;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return { total, completed, percentage };
   }

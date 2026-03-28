@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import {
   startOfDay,
   subDays,
@@ -61,13 +61,34 @@ export class AnalyticsService {
     @InjectModel(Subtask.name) private subtaskModel: Model<SubtaskDocument>,
   ) {}
 
+  /**
+   * Normalize userId to string for cross-model comparisons.
+   * The userId from JWT can come as ObjectId or string depending on context.
+   */
+  private toUserIdString(userId: string): string {
+    return typeof userId === 'string'
+      ? userId
+      : (userId as { toString(): string }).toString();
+  }
+
+  /**
+   * Normalize userId to ObjectId for MongoDB queries.
+   */
+  private toUserObjectId(userId: string): Types.ObjectId {
+    const userIdStr = this.toUserIdString(userId);
+    return new Types.ObjectId(userIdStr);
+  }
+
   async getDashboard(userId: string): Promise<DashboardResult> {
     const today = startOfDay(new Date());
     const thirtyDaysAgo = subDays(today, 30);
+    const tomorrowStart = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const userObjectId = this.toUserObjectId(userId);
+    const userIdStr = this.toUserIdString(userId);
 
-    // Recent completions (last 10) - fetch first to avoid model conflicts
+    // Recent completions (last 10)
     const recentCompletions = await this.habitCompletionModel
-      .find({ userId })
+      .find({ userId: userObjectId })
       .sort({ completedDate: -1 })
       .limit(10)
       .populate('habitId')
@@ -75,29 +96,29 @@ export class AnalyticsService {
 
     // Get all active habits for this user
     const activeHabits = await this.habitModel
-      .find({ userId, isActive: true })
+      .find({ userId: userObjectId, isActive: true })
       .exec();
 
     const totalHabits = activeHabits.length;
 
     // Count completions today
-    const tomorrowStart = new Date(today.getTime() + 24 * 60 * 60 * 1000);
     const completedToday = await this.habitCompletionModel.countDocuments({
-      userId,
+      userId: userObjectId,
       completedDate: { $gte: today, $lt: tomorrowStart },
     });
 
-    // Calculate averageCompletionRate over last 30 days
+    // Calculate averageCompletionRate over last 30 days + streaks
     let totalExpected = 0;
     let totalActual = 0;
     const streaks: StreakEntry[] = [];
 
     for (const habit of activeHabits) {
-      const habitIdStr = (habit._id as { toString(): string }).toString();
+      const habitObjectId = habit._id as Types.ObjectId;
+      const habitIdStr = habitObjectId.toString();
 
       // Count completions in last 30 days for this habit
       const habitCompletions30d = await this.habitCompletionModel.countDocuments({
-        habitId: habitIdStr,
+        habitId: habitObjectId,
         completedDate: { $gte: thirtyDaysAgo, $lt: tomorrowStart },
       });
 
@@ -114,7 +135,7 @@ export class AnalyticsService {
 
       // Calculate current streak
       const allCompletions = await this.habitCompletionModel
-        .find({ habitId: habitIdStr })
+        .find({ habitId: habitObjectId })
         .sort({ completedDate: -1 })
         .exec();
 
@@ -147,7 +168,7 @@ export class AnalyticsService {
 
     // Goal stats
     const allGoals = await this.goalModel
-      .find({ userId })
+      .find({ userId: userObjectId })
       .exec();
 
     const totalGoals = allGoals.length;
@@ -155,12 +176,12 @@ export class AnalyticsService {
 
     let progressSum = 0;
     for (const goal of allGoals) {
-      const goalIdStr = (goal._id as { toString(): string }).toString();
+      const goalObjectId = goal._id as Types.ObjectId;
       const totalSubtasks = await this.subtaskModel.countDocuments({
-        goalId: goalIdStr,
+        goalId: goalObjectId,
       });
       const completedSubtasks = await this.subtaskModel.countDocuments({
-        goalId: goalIdStr,
+        goalId: goalObjectId,
         isCompleted: true,
       });
       if (totalSubtasks > 0) {
@@ -172,6 +193,9 @@ export class AnalyticsService {
 
     const averageProgress =
       totalGoals > 0 ? Math.round((progressSum / totalGoals) * 10) / 10 : 0;
+
+    // Suppress unused variable warning
+    void userIdStr;
 
     return {
       habits: {
@@ -190,23 +214,25 @@ export class AnalyticsService {
     };
   }
 
-  async getHabitTrends(userId: string, period: string): Promise<TrendPoint[]> {
-    const daysCount = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+  async getHabitTrends(userId: string, period?: string): Promise<TrendPoint[]> {
+    const resolvedPeriod = period ?? '30d';
+    const daysCount = resolvedPeriod === '7d' ? 7 : resolvedPeriod === '90d' ? 90 : 30;
     const today = startOfDay(new Date());
     const startDate = subDays(today, daysCount - 1);
+    const tomorrowStart = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const userObjectId = this.toUserObjectId(userId);
 
     // Total active habits for "total" field
     const totalActiveHabits = await this.habitModel.countDocuments({
-      userId,
+      userId: userObjectId,
       isActive: true,
     });
 
-    // Aggregate completions by day
-    const tomorrowStart = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    // Aggregate completions by day for this user
     const aggregateResult = await this.habitCompletionModel.aggregate([
       {
         $match: {
-          userId: { $exists: true },
+          userId: userObjectId,
           completedDate: { $gte: startDate, $lt: tomorrowStart },
         },
       },
@@ -239,15 +265,19 @@ export class AnalyticsService {
   async getHeatmap(
     userId: string,
     habitId: string,
-    year: number,
+    year?: number,
   ): Promise<HeatmapEntry[]> {
-    const yearStart = startOfYear(new Date(year, 0, 1));
-    const yearEnd = endOfYear(new Date(year, 0, 1));
+    const resolvedYear = year ?? new Date().getFullYear();
+    const yearStart = startOfYear(new Date(resolvedYear, 0, 1));
+    const yearEnd = endOfYear(new Date(resolvedYear, 0, 1));
+
+    const habitObjectId = new Types.ObjectId(habitId);
+    const userObjectId = this.toUserObjectId(userId);
 
     const completions = await this.habitCompletionModel
       .find({
-        userId,
-        habitId,
+        habitId: habitObjectId,
+        userId: userObjectId,
         completedDate: { $gte: yearStart, $lte: yearEnd },
       })
       .sort({ completedDate: 1 })

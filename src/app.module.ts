@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { GoalsModule } from './goals/goals.module';
 import { HabitsModule } from './habits/habits.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { HabitsModule } from './habits/habits.module';
     UsersModule,
     GoalsModule,
     HabitsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

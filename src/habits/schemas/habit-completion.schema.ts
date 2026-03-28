@@ -19,7 +19,4 @@ export const HabitCompletionSchema =
   SchemaFactory.createForClass(HabitCompletion);
 
 // Compound unique index to prevent double-completions per habit per day
-HabitCompletionSchema.index(
-  { habitId: 1, completedDate: 1 },
-  { unique: true },
-);
+HabitCompletionSchema.index({ habitId: 1, completedDate: 1 }, { unique: true });
