@@ -4,6 +4,16 @@ import { Response } from 'express';
 import { AuthController, AuthRequest } from './auth.controller';
 import { AuthService } from './auth.service';
 
+// Mock Response interface with proper typing
+interface MockResponse {
+  cookie: jest.Mock<MockResponse>;
+  clearCookie: jest.Mock<MockResponse>;
+  redirect: jest.Mock<MockResponse>;
+  json: jest.Mock<MockResponse>;
+  status: jest.Mock<MockResponse>;
+  send: jest.Mock<MockResponse>;
+}
+
 describe('AuthController', () => {
   let controller: AuthController;
 
@@ -32,18 +42,19 @@ describe('AuthController', () => {
     },
   };
 
-  const createMockResponse = (): Response => {
-    const mockResp: any = {};
-    mockResp.cookie = jest.fn(() => mockResp);
-    mockResp.clearCookie = jest.fn(() => mockResp);
-    mockResp.redirect = jest.fn(() => mockResp);
-    mockResp.json = jest.fn(() => mockResp);
-    mockResp.status = jest.fn(() => mockResp);
-    mockResp.send = jest.fn(() => mockResp);
+  const createMockResponse = (): MockResponse => {
+    const mockResp: MockResponse = {
+      cookie: jest.fn((): MockResponse => mockResp),
+      clearCookie: jest.fn((): MockResponse => mockResp),
+      redirect: jest.fn((): MockResponse => mockResp),
+      json: jest.fn((): MockResponse => mockResp),
+      status: jest.fn((): MockResponse => mockResp),
+      send: jest.fn((): MockResponse => mockResp),
+    };
     return mockResp;
   };
 
-  let mockResponse: Response;
+  let mockResponse: MockResponse;
 
   beforeEach(async () => {
     mockResponse = createMockResponse();
@@ -81,7 +92,7 @@ describe('AuthController', () => {
       mockAuthService.generateTokens.mockReturnValue(tokens);
 
       const req = { user: mockUser } as unknown as AuthRequest;
-      controller.googleCallback(req, mockResponse as Response);
+      controller.googleCallback(req, mockResponse as unknown as Response);
 
       expect(mockAuthService.generateTokens).toHaveBeenCalledWith(mockUser._id);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
@@ -120,7 +131,7 @@ describe('AuthController', () => {
       mockAuthService.generateTokens.mockReturnValue(tokens);
 
       const req = { user: mockUser } as unknown as AuthRequest;
-      controller.githubCallback(req, mockResponse as Response);
+      controller.githubCallback(req, mockResponse as unknown as Response);
 
       expect(mockAuthService.generateTokens).toHaveBeenCalledWith(mockUser._id);
       expect(mockResponse.cookie).toHaveBeenCalledWith(
@@ -176,7 +187,7 @@ describe('AuthController', () => {
       mockAuthService.validateRefreshToken.mockReturnValue(userId);
       mockAuthService.generateTokens.mockReturnValue(newTokens);
 
-      controller.refresh(req, mockResponse as Response);
+      controller.refresh(req, mockResponse as unknown as Response);
 
       expect(mockAuthService.validateRefreshToken).toHaveBeenCalledWith(
         oldRefreshToken,
@@ -204,7 +215,9 @@ describe('AuthController', () => {
 
       mockAuthService.validateRefreshToken.mockReturnValue(null);
 
-      expect(() => controller.refresh(req, mockResponse as Response)).toThrow();
+      expect(() =>
+        controller.refresh(req, mockResponse as unknown as Response),
+      ).toThrow();
     });
   });
 
@@ -217,7 +230,7 @@ describe('AuthController', () => {
         },
       } as unknown as AuthRequest;
 
-      controller.logout(req, mockResponse as Response);
+      controller.logout(req, mockResponse as unknown as Response);
 
       expect(mockAuthService.revokeRefreshToken).toHaveBeenCalledWith(
         refreshToken,
